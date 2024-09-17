@@ -188,6 +188,7 @@ clean:
 realclean: clean
 	rm -rf lab$(LAB).tar.gz \
 		lab$(LAB)-handin.tar.gz \
+		gradelib.pyc \
 		jos.out $(wildcard jos.out.*) \
 		qemu.pcap $(wildcard qemu.pcap.*) \
 		myapi.key
