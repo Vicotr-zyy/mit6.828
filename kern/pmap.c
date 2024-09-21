@@ -36,8 +36,8 @@ i386_detect_memory(void)
 
 	// Use CMOS calls to measure available base & extended memory.
 	// (CMOS calls return results in kilobytes.)
-	basemem = nvram_read(NVRAM_BASELO);
-	extmem = nvram_read(NVRAM_EXTLO);
+	basemem  = nvram_read(NVRAM_BASELO);
+	extmem   = nvram_read(NVRAM_EXTLO);
 	ext16mem = nvram_read(NVRAM_EXT16LO) * 64;
 
 	// Calculate the number of physical pages available in both base
@@ -52,8 +52,10 @@ i386_detect_memory(void)
 	npages = totalmem / (PGSIZE / 1024);
 	npages_basemem = basemem / (PGSIZE / 1024);
 
+	// totalmem 128MB(131072KB), basemem 640KB, extended 127.375MB(130432KB)
 	cprintf("Physical memory: %uK available, base = %uK, extended = %uK\n",
 		totalmem, basemem, totalmem - basemem);
+	cprintf("npages = %d npages_basemem = %d\n", npages, npages_basemem);
 }
 
 
@@ -102,7 +104,17 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
+	int n_page = 0;
+	if(n > 0){
+			n_page = n / PGSIZE + 1;
+			/* allocate here */
+			result = (char *)nextfree + PGSIZE; 
+			/* allocate here */
+			result = ROUNDUP((char *) result, PGSIZE);
+			return result;
+	}else if(n == 0){
+			return nextfree;
+	}
 	return NULL;
 }
 
@@ -149,6 +161,8 @@ mem_init(void)
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
 
+	pages = (struct PageInfo *)boot_alloc(sizeof(struct PageInfo) * npages);
+	memset(pages, 0 , sizeof(struct PageInfo) * npages);	
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -251,12 +265,38 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+	// Question:
+	// how to mark a pageinfo is in use:
+	// pp_link = NULL;
 	size_t i;
-	for (i = 0; i < npages; i++) {
+	// 1. page 0 is in use
+	pages[0].pp_ref = 0;
+	pages[0].pp_link = NULL;
+	// 2. base mem is free
+	for(i = PGSIZE / PGSIZE ; i < npages_basemem; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+	// 3. IO hole is in use
+	for (i = IOPHYSMEM / PGSIZE; i < EXEPHYSMEM / PGSIZE ; i++) {
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = NULL;
+	}
+	// 4. EXTPHYMem some in use some is free
+	// kernel is in 0x10000 base address
+	// end -> pointes to the end of the kernel
+	// and some in use are pgdir_page and Page_Info array
+	for( i = EXEPHYSMEM / PGSIZE; i < (pages + sizeof(struct PageInfo) * npages )/ PGSIZE; i++){
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = NULL;
+	}	
+	// 4. the rest of EXEPHYMEM are free just link and set parameters
+	for( i; i < npages; i++){
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = page_free_list;
+		page_free_list = &pages[i];
+	}	
 }
 
 //

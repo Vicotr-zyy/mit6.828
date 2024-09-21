@@ -131,11 +131,6 @@ monitor(struct Trapframe *tf)
 {
 	char *buf;
 
-	int x = 1, y = 3, z = 4;
-	unsigned int i = 0x00646c72;
-	cprintf("\033[38:5:3mx %d, y %x, z %d\n", x, y, z);
-	cprintf("H%x Wo%s", 57616, &i);
-
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
