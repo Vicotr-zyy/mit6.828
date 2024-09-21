@@ -55,7 +55,6 @@ i386_detect_memory(void)
 	// totalmem 128MB(131072KB), basemem 640KB, extended 127.375MB(130432KB)
 	cprintf("Physical memory: %uK available, base = %uK, extended = %uK\n",
 		totalmem, basemem, totalmem - basemem);
-	cprintf("npages = %d npages_basemem = %d\n", npages, npages_basemem);
 }
 
 
@@ -107,12 +106,15 @@ boot_alloc(uint32_t n)
 	int n_page = 0;
 	if(n > 0){
 			n_page = n / PGSIZE + 1;
+			result = nextfree;
 			/* allocate here */
-			result = (char *)nextfree + PGSIZE; 
+			nextfree = (char *)nextfree + PGSIZE * n_page; 
 			/* allocate here */
-			result = ROUNDUP((char *) result, PGSIZE);
+			nextfree = ROUNDUP((char *)nextfree, PGSIZE);
 			return result;
+
 	}else if(n == 0){
+
 			return nextfree;
 	}
 	return NULL;
@@ -137,11 +139,11 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	//panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
-	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
+	kern_pgdir = (pde_t *)boot_alloc(PGSIZE);
 	memset(kern_pgdir, 0, PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
@@ -279,7 +281,7 @@ page_init(void)
 		page_free_list = &pages[i];
 	}
 	// 3. IO hole is in use
-	for (i = IOPHYSMEM / PGSIZE; i < EXEPHYSMEM / PGSIZE ; i++) {
+	for (i = IOPHYSMEM / PGSIZE; i < EXTPHYSMEM / PGSIZE ; i++) {
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = NULL;
 	}
@@ -287,16 +289,17 @@ page_init(void)
 	// kernel is in 0x10000 base address
 	// end -> pointes to the end of the kernel
 	// and some in use are pgdir_page and Page_Info array
-	for( i = EXEPHYSMEM / PGSIZE; i < (pages + sizeof(struct PageInfo) * npages )/ PGSIZE; i++){
+	for(i = EXTPHYSMEM / PGSIZE; i < ((uint32_t)pages + sizeof(struct PageInfo) * npages - KERNBASE) / PGSIZE + 1; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = NULL;
 	}	
-	// 4. the rest of EXEPHYMEM are free just link and set parameters
-	for( i; i < npages; i++){
+	// 4. the rest of EXTPHYMEM are free just link and set parameters
+	for( i ; i < npages; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}	
+
 }
 
 //
@@ -315,7 +318,26 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+
+	struct PageInfo *pg_info = page_free_list;
+
+	if(page_free_list == NULL){
+			return NULL;
+	}
+	if(alloc_flags & ALLOC_ZERO){
+			page_free_list = page_free_list->pp_link;
+			char *pg_addr = (char *)page2kva(pg_info);
+			pg_info->pp_link = NULL;
+			// Physical Page
+			memset(pg_addr, '\0' , PGSIZE);
+			return pg_info;
+	}else{
+			page_free_list = page_free_list->pp_link;
+			pg_info->pp_link = NULL;
+			return pg_info;
+	}
+	
+	return NULL;
 }
 
 //
@@ -328,6 +350,17 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+	if(pp->pp_ref != 0){
+		panic("pp_ref is none zero, Please check!\n");
+	}
+
+	if(pp->pp_link != NULL){
+		panic("pp_link is not null, Please check!\n");
+	}
+	
+	//return to the page_free_list;
+	pp->pp_link = page_free_list;
+	page_free_list = pp;
 }
 
 //
@@ -518,6 +551,7 @@ check_page_free_list(bool only_low_memory)
 		assert(((char *) pp - (char *) pages) % sizeof(*pp) == 0);
 
 		// check a few pages that shouldn't be on the free list
+		//cprintf("pp = 0x%08x page2pa = 0x%08x first_free_page = 0x%08x page2kva = 0x%08x \n", pp, page2pa(pp), first_free_page, page2kva(pp));
 		assert(page2pa(pp) != 0);
 		assert(page2pa(pp) != IOPHYSMEM);
 		assert(page2pa(pp) != EXTPHYSMEM - PGSIZE);
