@@ -289,7 +289,8 @@ page_init(void)
 	// kernel is in 0x10000 base address
 	// end -> pointes to the end of the kernel
 	// and some in use are pgdir_page and Page_Info array
-	for(i = EXTPHYSMEM / PGSIZE; i < ((uint32_t)pages + sizeof(struct PageInfo) * npages - KERNBASE) / PGSIZE + 1; i++){
+	//PADDR(void *((uint32_t)pages + sizeof(struct PageInfo) * npages));
+	for(i = EXTPHYSMEM / PGSIZE; i < (PADDR((void *)(pages + sizeof(struct PageInfo) * npages))) / PGSIZE + 1; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = NULL;
 	}	
