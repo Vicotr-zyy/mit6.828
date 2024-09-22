@@ -332,6 +332,7 @@ page_alloc(int alloc_flags)
 			// Physical Page
 			memset(pg_addr, '\0' , PGSIZE);
 			return pg_info;
+
 	}else{
 			page_free_list = page_free_list->pp_link;
 			pg_info->pp_link = NULL;
@@ -403,12 +404,20 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	// Fill this function in
 	
 	// 2.handle the mistakes that might occur
-	if((pgdir[PDX(va)] == 0) && create == false){
-			return NULL;
-	}else if(pgdir[PDX(va)]){
-			// walk two-level page table
-			return (pte_t *)(pgdir[PDX(va)] & ~0x3FF);
+	if(create == false){
+			if(pgdir[PDX(va)] == 0){
+				return NULL;
+			}else{
+				//return virtual address
+				//return (pte_t *)KADDR((pgdir[PDX(va)] & ~0x3FF));
+				return (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])) + PTX(va);
+			}
 	}else {
+			if(pgdir[PDX(va)]){
+				//return virtual address
+				//return (pte_t *)KADDR((pgdir[PDX(va)] & ~0x3FF));
+				return (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])) + PTX(va);
+			}
 			// 1.succeed
 			// 1). allocate new page
 			struct PageInfo *pg_info = page_alloc(ALLOC_ZERO);	
@@ -421,10 +430,11 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			physaddr_t paddr =  page2pa(pg_info);
 			uintptr_t vaddr = (uintptr_t)KADDR(paddr);
 			// 3). insert to page_directory using some permission bits
-			pgdir[PDX(va)] = paddr | PTE_W | PTE_A | PTE_PWT | PTE_P;
+			pgdir[PDX(va)] = paddr | PTE_W | PTE_A | PTE_U | PTE_PWT | PTE_P;
 
-			return (pte_t *)vaddr;
+			return (pte_t *)vaddr + PTX(va);
 	}
+	return NULL;
 }
 
 //
@@ -446,7 +456,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	if(p_pte == NULL){
 		panic("pgdir_walk error, Please check!\n");
 	}
-	p_pte[PTX(va)] = pa | perm | PTE_P;
+	*p_pte = pa | perm | PTE_P;
 }
 
 //
@@ -483,11 +493,16 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 		// page table couldn't be allocated
 		return -E_NO_MEM;
 	}
-	if(p_pte[PTX(va)]){
+	if(*p_pte){
 		page_remove(pgdir, va);
 	}	
 	pp->pp_ref++;
-	p_pte[PTX(va)] = page2pa(pp) |	perm | PTE_P;
+	*p_pte = page2pa(pp) |	perm | PTE_P;
+	
+	if(pp == page_free_list){
+		// handle the Corner-case hint
+		page_free_list = page_free_list->pp_link;
+	}
 
 	return 0;
 }
@@ -511,10 +526,10 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 	if(p_pte == NULL){
 		return NULL;
 	}
-	struct PageInfo *pg_info = pa2page(p_pte[PTX(va)]);
+	struct PageInfo *pg_info = pa2page(*p_pte);
 
 	if(pte_store != NULL){
-		pte_store = &p_pte;
+		*pte_store = p_pte;
 	}
 
 	return pg_info;
@@ -541,6 +556,7 @@ page_remove(pde_t *pgdir, void *va)
 	// Fill this function in
 	pte_t *p_pte = NULL;
 	struct PageInfo *pg_info = page_lookup(pgdir, va, &p_pte);
+	
 	if(pg_info == NULL){
 		//silently does nothing
 		return;
@@ -550,7 +566,7 @@ page_remove(pde_t *pgdir, void *va)
 
 	// if such a PTE exist then the pte entry must be set to 0
 	if(p_pte){
-			p_pte[PTX(va)] = 0;
+			*p_pte = 0;
 	}
 	
 	// The TLB must be invalidated if you remove an entry from
@@ -618,7 +634,6 @@ check_page_free_list(bool only_low_memory)
 		assert(((char *) pp - (char *) pages) % sizeof(*pp) == 0);
 
 		// check a few pages that shouldn't be on the free list
-		//cprintf("pp = 0x%08x page2pa = 0x%08x first_free_page = 0x%08x page2kva = 0x%08x \n", pp, page2pa(pp), first_free_page, page2kva(pp));
 		assert(page2pa(pp) != 0);
 		assert(page2pa(pp) != IOPHYSMEM);
 		assert(page2pa(pp) != EXTPHYSMEM - PGSIZE);
