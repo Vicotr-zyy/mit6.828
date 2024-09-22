@@ -430,7 +430,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			physaddr_t paddr =  page2pa(pg_info);
 			uintptr_t vaddr = (uintptr_t)KADDR(paddr);
 			// 3). insert to page_directory using some permission bits
-			pgdir[PDX(va)] = paddr | PTE_W | PTE_A | PTE_U | PTE_PWT | PTE_P;
+			pgdir[PDX(va)] = paddr | PTE_W | PTE_A | PTE_U | PTE_P;
 
 			return (pte_t *)vaddr + PTX(va);
 	}
