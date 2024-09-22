@@ -189,6 +189,8 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
 
+	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(sizeof(struct PageInfo) * npages, PGSIZE), PADDR(pages), PTE_U);
+
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -200,6 +202,9 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+	//bootstack
+
+	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -209,6 +214,9 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+	//
+	//
+	boot_map_region(kern_pgdir, KERNBASE, 2 * PGSIZE * npages, 0x0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -409,13 +417,11 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 				return NULL;
 			}else{
 				//return virtual address
-				//return (pte_t *)KADDR((pgdir[PDX(va)] & ~0x3FF));
 				return (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])) + PTX(va);
 			}
 	}else {
 			if(pgdir[PDX(va)]){
 				//return virtual address
-				//return (pte_t *)KADDR((pgdir[PDX(va)] & ~0x3FF));
 				return (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])) + PTX(va);
 			}
 			// 1.succeed
@@ -452,11 +458,17 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
-	pte_t *p_pte = pgdir_walk(pgdir, (void *)va, true);
-	if(p_pte == NULL){
-		panic("pgdir_walk error, Please check!\n");
+	size_t n_pages = size / PGSIZE;
+	int i = 0;
+	for(i = 0; i < n_pages; i++){
+		pte_t *p_pte = pgdir_walk(pgdir, (void *)va, true);
+		if(p_pte == NULL){
+			panic("pgdir_walk error, Please check!\n");
+		}
+		*p_pte = pa | perm | PTE_P;
+		va += PGSIZE;
+		pa += PGSIZE;
 	}
-	*p_pte = pa | perm | PTE_P;
 }
 
 //
