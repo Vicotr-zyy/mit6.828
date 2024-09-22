@@ -401,7 +401,30 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	
+	// 2.handle the mistakes that might occur
+	if((pgdir[PDX(va)] == 0) && create == false){
+			return NULL;
+	}else if(pgdir[PDX(va)]){
+			// walk two-level page table
+			return (pte_t *)(pgdir[PDX(va)] & ~0x3FF);
+	}else {
+			// 1.succeed
+			// 1). allocate new page
+			struct PageInfo *pg_info = page_alloc(ALLOC_ZERO);	
+			if(pg_info == NULL){
+					//page_alloc error
+					return NULL;
+			}
+			pg_info->pp_ref ++;	
+			// 2). get the physical page it refers to (PageInfo)
+			physaddr_t paddr =  page2pa(pg_info);
+			uintptr_t vaddr = (uintptr_t)KADDR(paddr);
+			// 3). insert to page_directory using some permission bits
+			pgdir[PDX(va)] = paddr | PTE_W | PTE_A | PTE_PWT | PTE_P;
+
+			return (pte_t *)vaddr;
+	}
 }
 
 //
@@ -419,6 +442,11 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	pte_t *p_pte = pgdir_walk(pgdir, (void *)va, true);
+	if(p_pte == NULL){
+		panic("pgdir_walk error, Please check!\n");
+	}
+	p_pte[PTX(va)] = pa | perm | PTE_P;
 }
 
 //
@@ -450,6 +478,17 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	pte_t *p_pte = pgdir_walk(pgdir, va, true);
+	if(p_pte == NULL){
+		// page table couldn't be allocated
+		return -E_NO_MEM;
+	}
+	if(p_pte[PTX(va)]){
+		page_remove(pgdir, va);
+	}	
+	pp->pp_ref++;
+	p_pte[PTX(va)] = page2pa(pp) |	perm | PTE_P;
+
 	return 0;
 }
 
@@ -468,7 +507,17 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t *p_pte = pgdir_walk(pgdir, va, false);
+	if(p_pte == NULL){
+		return NULL;
+	}
+	struct PageInfo *pg_info = pa2page(p_pte[PTX(va)]);
+
+	if(pte_store != NULL){
+		pte_store = &p_pte;
+	}
+
+	return pg_info;
 }
 
 //
@@ -490,6 +539,23 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	pte_t *p_pte = NULL;
+	struct PageInfo *pg_info = page_lookup(pgdir, va, &p_pte);
+	if(pg_info == NULL){
+		//silently does nothing
+		return;
+	}		
+	// decrement the pp_ref if it counts to zero then free it out
+	page_decref(pg_info);
+
+	// if such a PTE exist then the pte entry must be set to 0
+	if(p_pte){
+			p_pte[PTX(va)] = 0;
+	}
+	
+	// The TLB must be invalidated if you remove an entry from
+	tlb_invalidate(pgdir, va);
+					
 }
 
 //
