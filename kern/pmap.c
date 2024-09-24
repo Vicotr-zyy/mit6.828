@@ -215,9 +215,10 @@ mem_init(void)
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
 	//
-	//
+	// 256MB for kernel
 	boot_map_region(kern_pgdir, KERNBASE, 2 * PGSIZE * npages, 0x0, PTE_W);
 
+	//panic("mem_init: This function is not finished\n");
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
@@ -297,7 +298,6 @@ page_init(void)
 	// kernel is in 0x10000 base address
 	// end -> pointes to the end of the kernel
 	// and some in use are pgdir_page and Page_Info array
-	//PADDR(void *((uint32_t)pages + sizeof(struct PageInfo) * npages));
 	for(i = EXTPHYSMEM / PGSIZE; i < (PADDR((void *)(pages + sizeof(struct PageInfo) * npages))) / PGSIZE + 1; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = NULL;
@@ -437,6 +437,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			uintptr_t vaddr = (uintptr_t)KADDR(paddr);
 			// 3). insert to page_directory using some permission bits
 			pgdir[PDX(va)] = paddr | PTE_W | PTE_A | PTE_U | PTE_P;
+			// 0x002 | 0x020 | 0x004 | 0x001 = 0x063
 
 			return (pte_t *)vaddr + PTX(va);
 	}
