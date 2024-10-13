@@ -192,6 +192,8 @@ cga_putc(int c)
 	}
 
 	// What is the purpose of this?
+	// to implement a roll screen result
+	// when I type the last line and then jump back to the first line
 	if (crt_pos >= CRT_SIZE) {
 		int i;
 
