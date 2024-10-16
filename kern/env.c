@@ -116,7 +116,21 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-
+	int i;
+	struct Env *tail;
+	for(i = 0; i < NENV ; i++){
+		// set env_id member is 0
+		envs[i].env_id = 0;
+		// head insert to env_free_list
+		if(i != 0) { 
+			tail->env_link = (struct Env*)&envs[i];
+			tail = (struct Env*)&envs[i];
+		}else{// first time for speed branch 
+			envs[i].env_link = env_free_list;
+			env_free_list = (struct Env*)&envs[i];
+			tail = env_free_list;
+		}
+	}	
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -179,7 +193,15 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
-
+	// map the pageinfo to a page memory but virtually
+	e->env_pgdir = (pde_t *)page2kva(p);
+	// increment the pp_ref for env_free work correctly
+	p->pp_ref++;
+	// use kern_pgdir as a template but not passed
+	int i = PDX(UTOP);	
+	for(i; i < 1024; i++){
+		e->env_pgdir[i] = kern_pgdir[i];
+	}
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -267,6 +289,22 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+	va = ROUNDDOWN(va, PGSIZE);
+	void * end = ROUNDUP(va + len, PGSIZE);
+	for(va; va < end; va += PGSIZE){
+		// allocate one page 
+		struct PageInfo * pginfo = page_alloc(0);
+		if(pginfo == NULL){
+			panic("page_alloc error, please check!\n");
+		}
+		// convert it to physical page
+		physaddr_t pa = page2pa(pginfo);
+		pte_t * p_pte = pgdir_walk(e->env_pgdir, (void *)va, true);
+		if(p_pte == NULL){
+			panic("pgdir_walk error, please check!\n");
+		}
+		*p_pte = pa | PTE_U | PTE_W | PTE_P;
+	}
 }
 
 //
@@ -324,10 +362,42 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 
+	struct Elf *elf_header = (struct Elf *)binary;
+	struct Proghdr *ph, *eph;
+
+	// check for magic number
+	if(elf_header->e_magic != ELF_MAGIC);
+			goto bad;
+	
+	// load each program segment (ignores ph flags)
+	ph = (struct Proghdr *)((uint8_t *)elf_header + elf_header->e_phoff);
+	eph = ph + elf_header->e_phnum;
+	for(; ph < eph; ph++){
+		// only loads segment type is ELF_PROG_LOAD
+		if(ph->p_type == ELF_PROG_LOAD){
+			// ph->p_filesz <= ph->p_memsz			
+			if( ph->p_filesz > ph->p_memsz)
+				goto bad;
+			// allocate lens memory to remap
+			int n_page = (ROUNDUP(p_filesz) - ROUNDDOWN(ph->p_va) )/ PGSIZE;
+			region_alloc(e, ph->p_va, n_page * PGSIZE);
+			int i = 0;
+			for(; i < n_page; i++){
+				// copy to them from ph->p_pa but we are now in virtual memory
+				struct PageInfo *pginfo = page_lookup(e->env_pgdir, p_start, NULL);
+				memcpy((void*)page2kva(pginfo), (void *)(binary + ph->p_offset), PGSIZE);
+			}
+		}
+		continue;
+	}
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	
+bad:
+	// free memory and panic
+	panic("bad in load_inode\n");
 }
 
 //
