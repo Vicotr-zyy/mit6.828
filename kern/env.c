@@ -194,14 +194,23 @@ env_setup_vm(struct Env *e)
 
 	// LAB 3: Your code here.
 	// map the pageinfo to a page memory but virtually
-	e->env_pgdir = (pde_t *)page2kva(p);
+	e->env_pgdir = (pde_t *)page2pa(p); //must be pa becasue of the cr3 reg needs to find the pa of the pgdir
 	// increment the pp_ref for env_free work correctly
 	p->pp_ref++;
-	// use kern_pgdir as a template but not passed
-	int i = PDX(UTOP);	
-	for(i; i < 1024; i++){
+	// use kern_pgdir as a template 
+	// above UTOP but set correct permissions
+	i = PDX(UPAGES);
+	e->env_pgdir[i] = kern_pgdir[i];
+	i = PDX(UENVS);
+	e->env_pgdir[i] = kern_pgdir[i];
+	//kernel stack do what? env has one single KERNEL_STACK
+	i = PDX(KSTACKTOP-KSTKSIZE);
+	e->env_pgdir[i] = kern_pgdir[i];
+	//KERNBASE REMAP
+	for(i = PDX(KERNBASE); i < 1024; i++ ){
 		e->env_pgdir[i] = kern_pgdir[i];
 	}
+	// except for above we don't set env page
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -361,16 +370,14 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-
 	struct Elf *elf_header = (struct Elf *)binary;
 	struct Proghdr *ph, *eph;
 
 	// check for magic number
 	if(elf_header->e_magic != ELF_MAGIC);
 			goto bad;
-	
 	// load each program segment (ignores ph flags)
-	ph = (struct Proghdr *)((uint8_t *)elf_header + elf_header->e_phoff);
+	ph = (struct Proghdr *)((uint32_t *)elf_header + elf_header->e_phoff);
 	eph = ph + elf_header->e_phnum;
 	for(; ph < eph; ph++){
 		// only loads segment type is ELF_PROG_LOAD
@@ -379,7 +386,7 @@ load_icode(struct Env *e, uint8_t *binary)
 			if( ph->p_filesz > ph->p_memsz)
 				goto bad;
 			// allocate lens memory to remap
-			int n_page = (ROUNDUP(p_filesz) - ROUNDDOWN(ph->p_va) )/ PGSIZE;
+			int n_page = (ROUNDUP(ph->p_filesz, PGSIZE) - ROUNDDOWN(ph->p_va, PGSIZE) )/ PGSIZE;
 			region_alloc(e, ph->p_va, n_page * PGSIZE);
 			int i = 0;
 			for(; i < n_page; i++){
@@ -392,7 +399,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	}
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-
 	// LAB 3: Your code here.
 	
 bad:

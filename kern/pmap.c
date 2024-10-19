@@ -137,6 +137,7 @@ mem_init(void)
 	size_t n;
 
 	// Find out how much memory the machine has (npages & npages_basemem).
+	// totalmem 128MB(131072KB), basemem 640KB, extended 127.375MB(130432KB)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
@@ -196,8 +197,9 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
 
-	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(sizeof(struct PageInfo) * npages, PGSIZE), PADDR(pages), PTE_U);
-
+	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(sizeof(struct PageInfo) * npages, PGSIZE), PADDR(pages), PTE_W );
+	// 0x4000 PTSIZE is 0x400000 = PGSIZE * NPTENTRIES
+	//cprintf("Upages Size: 0x%08x\n", ROUNDUP(sizeof(struct PageInfo) * npages, PGSIZE));
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
 	// (ie. perm = PTE_U | PTE_P).
@@ -206,7 +208,7 @@ mem_init(void)
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
 
-	boot_map_region(kern_pgdir, UENVS, ROUNDUP(sizeof(struct Env) * NENV, PGSIZE), PADDR(envs), PTE_U);
+	boot_map_region(kern_pgdir, UENVS, ROUNDUP(sizeof(struct Env) * NENV, PGSIZE), PADDR(envs), PTE_W );
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -219,8 +221,8 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
-	//bootstack
-
+	//bootstack in kern/entry.S
+	//KSTKSIZE 8 * PGSIZE == 32KB
 	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
 	//////////////////////////////////////////////////////////////////////
@@ -233,8 +235,14 @@ mem_init(void)
 	// Your code goes here:
 	//
 	// 256MB for kernel
-	boot_map_region(kern_pgdir, KERNBASE, 2 * PGSIZE * npages, 0x0, PTE_W);
-
+	// actually we only have 128 MB physical memory
+	// but we need to set up the map, so in order to construct the page we have to 
+	// cal the one page table contains 4MB, but we have 1024 entries of PTE
+	// PDX(KERNBASE)->PDX(4G - KERNBASE)
+	boot_map_region(kern_pgdir, KERNBASE, (0xffffffff - KERNBASE + 0x01), 0x0, PTE_W);
+	//( 960 1024 ) * 4MB = 256 MB
+	//that is for remap
+	//cprintf("PDX(KERNBASE):%d PDX(4G-KERNBASE):%d\n", PDX(KERNBASE), PDX(0x10000000));
 	//panic("mem_init: This function is not finished\n");
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
