@@ -433,7 +433,6 @@ env_create(uint8_t *binary, enum EnvType type)
 	}
 	// 2.load binary into it
 	load_icode(env, binary);
-	cprintf("load_icode ok!\n");
 	// 3.set its env_type
 	env->env_type = type;
 }
