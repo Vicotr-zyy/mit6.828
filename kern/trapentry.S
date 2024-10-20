@@ -20,7 +20,12 @@
  *   void NAME();
  * where NAME is the argument passed to TRAPHANDLER.
  */
+
+
 #define TRAPHANDLER(name, num)						\
+	.data;\
+	.long name; \
+	.text;\
 	.globl name;		/* define global symbol for 'name' */	\
 	.type name, @function;	/* symbol type is function */		\
 	.align 2;		/* align function definition */		\
@@ -32,20 +37,25 @@
  * It pushes a 0 in place of the error code, so the trap frame has the same
  * format in either case.
  */
+
 #define TRAPHANDLER_NOEC(name, num)					\
+	.data;\
+	.long name; \
+	.text;\
 	.globl name;							\
 	.type name, @function;						\
 	.align 2;							\
 	name:								\
 	pushl $0;							\
 	pushl $(num);							\
-	jmp _alltraps
-
-.text
+	jmp _alltraps	
 
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
+.data
+.global handlers
+handlers:
 
 TRAPHANDLER_NOEC(handler0, T_DIVIDE);
 TRAPHANDLER_NOEC(handler1, T_DEBUG);
@@ -67,6 +77,11 @@ TRAPHANDLER_NOEC(handler16, T_FPERR);
 TRAPHANDLER_NOEC(handler17, T_ALIGN);
 TRAPHANDLER_NOEC(handler18, T_MCHK);
 TRAPHANDLER_NOEC(handler19, T_SIMDERR);
+
+/*
+* generate a table for trap.c to use
+*/
+
 
 /*
  * Lab 3: Your code here for _alltraps
