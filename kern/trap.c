@@ -59,7 +59,6 @@ static const char *trapname(int trapno)
 }
 
 
-#define HADNLER(handler,x) handler##x
 void
 trap_init(void)
 {
@@ -68,8 +67,6 @@ trap_init(void)
 	// LAB 3: Your code here.
 	int i = 0;	
 	for(i = 0; i < 20; i++){
-		if(i == 9 || i == 15)
-			continue;
 		SETGATE(idt[i], 0, GD_KT, handlers[i], 0);
 	}
 	// Per-CPU setup 
@@ -150,6 +147,11 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	
+	//page fault
+	if(tf->tf_trapno == T_PGFLT){
+			page_fault_handler(tf);
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
