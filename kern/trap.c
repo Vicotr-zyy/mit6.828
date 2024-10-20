@@ -69,6 +69,10 @@ trap_init(void)
 	for(i = 0; i < 20; i++){
 		SETGATE(idt[i], 0, GD_KT, handlers[i], 0);
 	}
+	SETGATE(idt[3], 0, GD_KT, handlers[3], 3);
+	for(i = 20; i < 256; i++){
+		SETGATE(idt[i], 0, GD_KT, NULL, 0);
+	}
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -152,7 +156,11 @@ trap_dispatch(struct Trapframe *tf)
 	if(tf->tf_trapno == T_PGFLT){
 			page_fault_handler(tf);
 	}
-
+	//break point exception
+	if(tf->tf_trapno == T_BRKPT){
+		print_trapframe(tf);
+		panic("Diving into the kernel monitor!\n");
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
