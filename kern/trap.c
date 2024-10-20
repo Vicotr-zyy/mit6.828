@@ -158,8 +158,7 @@ trap_dispatch(struct Trapframe *tf)
 	}
 	//break point exception
 	if(tf->tf_trapno == T_BRKPT){
-		print_trapframe(tf);
-		panic("Diving into the kernel monitor!\n");
+			monitor(tf);
 	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

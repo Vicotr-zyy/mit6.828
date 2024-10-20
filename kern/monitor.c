@@ -12,6 +12,7 @@
 #include <kern/kdebug.h>
 #include <kern/trap.h>
 #include <kern/pmap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -30,6 +31,7 @@ static struct Command commands[] = {
 	{ "showmappings", "Display the physical page mappings about the kernel", mon_showmappings },
 	{ "pagepermission", "Chaneg the virtual page permission about the kernel", mon_pagepermission },
 	{ "dump", "dump the virtual addr or physical addr contents", mon_dump },
+	{ "continue", "continue exectution from the current location after int $3", mon_continue},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -189,6 +191,21 @@ mon_dump(int argc, char **argv, struct Trapframe *tf)
 			}
 		}	
 		return 0;
+}
+
+int
+mon_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	//continue exectution from current location	
+	
+	// how to accomplish single-step
+	// 80386 single-step mode in EFLAGS: TF bit 8
+	tf->tf_eflags |= 0x100;
+	// you have to change some settings of the eip because of the insert opcode for 
+	// debug
+	env_pop_tf(tf);	
+
+	return 0;
 }
 
 /***** Kernel monitor command interpreter *****/
