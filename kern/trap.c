@@ -69,10 +69,13 @@ trap_init(void)
 	for(i = 0; i < 20; i++){
 		SETGATE(idt[i], 0, GD_KT, handlers[i], 0);
 	}
+	// int3
 	SETGATE(idt[3], 0, GD_KT, handlers[3], 3);
 	for(i = 20; i < 256; i++){
 		SETGATE(idt[i], 0, GD_KT, NULL, 0);
 	}
+	// int 0x30 for system call
+	SETGATE(idt[48], 0, GD_KT, handlers[20], 3);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -163,6 +166,10 @@ trap_dispatch(struct Trapframe *tf)
 	//debug exception
 	if(tf->tf_trapno == T_DEBUG){
 			monitor(tf);
+	}
+	// Systemcall
+	if(tf->tf_trapno == T_SYSCALL){
+			syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
 	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

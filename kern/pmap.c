@@ -649,7 +649,18 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
-
+	// 1.check the address is below ULIM
+	if((uint32_t)ROUNDUP(va + len, PGSIZE) > ULIM)
+		return -E_FAULT;
+	// 2.check the page has the right permissions
+	// 
+	uint32_t *addr = (uint32_t *)va;
+	pte_t *pte_store;
+	for(va; addr < addr + len + 2 * PGSIZE; addr += PGSIZE){
+		page_lookup(curenv->env_pgdir, (void *)addr, &pte_store);	
+		if(((*pte_store ) & (perm | PTE_P)) <= 0)
+			return -E_FAULT;
+	}
 	return 0;
 }
 

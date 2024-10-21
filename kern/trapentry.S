@@ -78,6 +78,8 @@ TRAPHANDLER_NOEC(handler17, T_ALIGN);
 TRAPHANDLER_NOEC(handler18, T_MCHK);
 TRAPHANDLER_NOEC(handler19, T_SIMDERR);
 
+TRAPHANDLER_NOEC(handler48, T_SYSCALL);
+
 /*
 * generate a table for trap.c to use
 */
