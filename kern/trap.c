@@ -160,6 +160,10 @@ trap_dispatch(struct Trapframe *tf)
 	if(tf->tf_trapno == T_BRKPT){
 			monitor(tf);
 	}
+	//debug exception
+	if(tf->tf_trapno == T_DEBUG){
+			monitor(tf);
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)

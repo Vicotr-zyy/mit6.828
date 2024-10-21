@@ -202,9 +202,12 @@ mon_continue(int argc, char **argv, struct Trapframe *tf)
 	// 80386 single-step mode in EFLAGS: TF bit 8
 	tf->tf_eflags |= 0x100;
 	// you have to change some settings of the eip because of the insert opcode for 
-	// debug
+	// disassemble the instruction
+	// cs:eip -> instruction Optional Chanllenge
+	
+	// debug resume
 	env_pop_tf(tf);	
-
+	//
 	return 0;
 }
 
