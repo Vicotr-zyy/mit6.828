@@ -7,3 +7,7 @@
 
 
 4. in case of the user dives into kernel without protection, and the int $ instruction is the only way to request the services of the kernel
+
+
+5. backtrace in run-breakpoint
+	ebp traces in user stack which kernel pgdir doesn't map so it will cause a kernel page fault

@@ -380,7 +380,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	ph = (struct Proghdr *)((uint8_t *)elf_header + elf_header->e_phoff);
 	eph = ph + elf_header->e_phnum;
 	// size of program header = 32byte program header number = 3
-	// cprintf("ph:0x%08x eph:0x%08x\n", ph, eph);	
+	//cprintf("ph:0x%08x eph:0x%08x\n", ph, eph);	
 	for(; ph < eph; ph++){
 		// only loads segment type is ELF_PROG_LOAD
 		if(ph->p_type == ELF_PROG_LOAD){
@@ -388,7 +388,7 @@ load_icode(struct Env *e, uint8_t *binary)
 			if( ph->p_filesz > ph->p_memsz)
 				goto bad;
 			// allocate lens memory to remap
-			region_alloc(e, (void *)ph->p_va, ph->p_filesz);
+			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 			// copy to virtual memory by hardware mmu
 			memmove((void *)ph->p_va, (void *)(binary + ph->p_offset), ph->p_filesz);
 			if(ph->p_filesz != ph->p_memsz)
@@ -398,7 +398,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	}
 	// construct Trapframe eip to entry of ELF binary file
 	e->env_tf.tf_eip = (elf_header->e_entry);
-	//cprintf("User ip address: 0x%08x\n", e->env_tf.tf_eip);
+	// cprintf("User ip address: 0x%08x\n", e->env_tf.tf_eip);
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 	// LAB 3: Your code here.
@@ -433,6 +433,7 @@ env_create(uint8_t *binary, enum EnvType type)
 	}
 	// 2.load binary into it
 	load_icode(env, binary);
+	cprintf("load_inode ok\n");
 	// 3.set its env_type
 	env->env_type = type;
 }

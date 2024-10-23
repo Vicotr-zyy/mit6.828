@@ -197,7 +197,7 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
 
-	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(sizeof(struct PageInfo) * npages, PGSIZE), PADDR(pages), PTE_W );
+	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(sizeof(struct PageInfo) * npages, PGSIZE), PADDR(pages), PTE_U);
 	// 0x4000 PTSIZE is 0x400000 = PGSIZE * NPTENTRIES
 	//cprintf("Upages Size: 0x%08x\n", ROUNDUP(sizeof(struct PageInfo) * npages, PGSIZE));
 	//////////////////////////////////////////////////////////////////////
@@ -208,7 +208,7 @@ mem_init(void)
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
 
-	boot_map_region(kern_pgdir, UENVS, ROUNDUP(sizeof(struct Env) * NENV, PGSIZE), PADDR(envs), PTE_W );
+	boot_map_region(kern_pgdir, UENVS, ROUNDUP(sizeof(struct Env) * NENV, PGSIZE), PADDR(envs), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -650,16 +650,34 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
 	// 1.check the address is below ULIM
-	if((uint32_t)ROUNDUP(va + len, PGSIZE) > ULIM)
+	if((uint32_t)ROUNDUP(va + len, PGSIZE) > ULIM){
+		user_mem_check_addr = (uintptr_t)va;
 		return -E_FAULT;
+	}
 	// 2.check the page has the right permissions
 	// 
-	uint32_t *addr = (uint32_t *)va;
+	// |-----|
+	// |-----| <-- not aligned  but len is 
+	// |-----|
+	// |-----|
+	//
+	//
+	//
+	//
+	//cprintf("va: 0x%08x len: 0x%08x\n", va, len);
+	unsigned char *addr = (unsigned char *)va;
+	int k = 0; // this needs to be concerned
 	pte_t *pte_store;
-	for(va; addr < addr + len + 2 * PGSIZE; addr += PGSIZE){
+	for(k; k <= len / PGSIZE ; k++){
 		page_lookup(curenv->env_pgdir, (void *)addr, &pte_store);	
-		if(((*pte_store ) & (perm | PTE_P)) <= 0)
+	  //cprintf("addr: 0x%08x len: 0x%08x\n", addr, len);
+		//cprintf("*pte_store : 0x%08x\n", *pte_store);
+		if(((*pte_store ) & (perm | PTE_P)) <= 0){
+			user_mem_check_addr = (uintptr_t)addr;
 			return -E_FAULT;
+		}
+		addr = ROUNDUP(addr, PGSIZE);
+		addr += PGSIZE;
 	}
 	return 0;
 }
