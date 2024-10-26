@@ -10,7 +10,9 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/trap.h>
 #include <kern/pmap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -29,6 +31,7 @@ static struct Command commands[] = {
 	{ "showmappings", "Display the physical page mappings about the kernel", mon_showmappings },
 	{ "pagepermission", "Chaneg the virtual page permission about the kernel", mon_pagepermission },
 	{ "dump", "dump the virtual addr or physical addr contents", mon_dump },
+	{ "continue", "continue exectution from the current location after int $3", mon_continue},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -71,6 +74,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	cprintf("Stack backtrace:\n");
 	do{
 		eip = *(uint32_t *)(ebp + 4);
+		cprintf("ebp : 0x%08x\n", ebp);
 		for(i = 0; i < 5; i++){
 			args[i] = *(uint32_t *)(ebp + 4 * (i + 2));
 		}
@@ -190,6 +194,24 @@ mon_dump(int argc, char **argv, struct Trapframe *tf)
 		return 0;
 }
 
+int
+mon_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	//continue exectution from current location	
+	
+	// how to accomplish single-step
+	// 80386 single-step mode in EFLAGS: TF bit 8
+	tf->tf_eflags |= 0x100;
+	// you have to change some settings of the eip because of the insert opcode for 
+	// disassemble the instruction
+	// cs:eip -> instruction Optional Chanllenge
+	
+	// debug resume
+	env_pop_tf(tf);	
+	//
+	return 0;
+}
+
 /***** Kernel monitor command interpreter *****/
 
 #define WHITESPACE "\t\r\n "
@@ -242,6 +264,8 @@ monitor(struct Trapframe *tf)
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
+	if (tf != NULL)
+		print_trapframe(tf);
 
 	while (1) {
 		buf = readline("K> ");

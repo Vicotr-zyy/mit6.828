@@ -1,0 +1,13 @@
+1. the purpose of having an individual handler function for each exception/interrupt is  hw behaves differently when facing different exceptions. (e.g. error code)
+
+2. generation protection fault 13
+	 page fault will restart this instruction is int $14, which causes infinitely loop
+
+3. when idt set dpl to DPL_KERNEL (aka 0), int $3 will generate a protection fault, This fault will push error code onto the stack, when I check the err code 0x1a, check the mannual of IA32 it tells us the Index segment is 0x03 which is user code segment. And it tells me that int instruction can't execute on the user level. So the correct way to set the GATE is DPL_USER (aka 3)
+
+
+4. in case of the user dives into kernel without protection, and the int $ instruction is the only way to request the services of the kernel
+
+
+5. backtrace in run-breakpoint
+	ebp traces in user stack which kernel pgdir doesn't map so it will cause a kernel page fault
