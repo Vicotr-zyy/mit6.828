@@ -70,9 +70,19 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
-
+	extern uint32_t handlers[];
 	// LAB 3: Your code here.
-
+	int i = 0;	
+	for(i = 0; i < 20; i++){
+		SETGATE(idt[i], 0, GD_KT, handlers[i], 0);
+	}
+	// int3
+	SETGATE(idt[3], 0, GD_KT, handlers[3], 3);
+	for(i = 20; i < 256; i++){
+		SETGATE(idt[i], 0, GD_KT, NULL, 0);
+	}
+	// int 0x30 for system call
+	SETGATE(idt[48], 0, GD_KT, handlers[20], 3);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -174,9 +184,7 @@ print_regs(struct PushRegs *regs)
 static void
 trap_dispatch(struct Trapframe *tf)
 {
-	// Handle processor exceptions.
-	// LAB 3: Your code here.
-
+	
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
@@ -190,6 +198,28 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 
+	
+	//page fault
+	if(tf->tf_trapno == T_PGFLT){
+			page_fault_handler(tf);
+			return;
+	}
+	//break point exception
+	if(tf->tf_trapno == T_BRKPT){
+			monitor(tf);
+			return;
+	}
+	//debug exception
+	if(tf->tf_trapno == T_DEBUG){
+			monitor(tf);
+			return;
+	}
+	// Systemcall
+	if(tf->tf_trapno == T_SYSCALL){
+			tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+			return;
+	}
+	
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -271,6 +301,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if((tf->tf_cs & 3 )== 0){
+		panic("page-fault form kernel mode!");
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

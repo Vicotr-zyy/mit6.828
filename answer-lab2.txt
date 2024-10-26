@@ -1,0 +1,33 @@
+Question:
+1. virtual_address
+
+2. entry		base virtual address						Pointes to
+
+	 956			0xef000000  						  				pages	
+	 959	 		0xf0000000-0x8000 = 0xefff8000	  kernel stack(bootstack)
+	 960			0xf0000000												from 0 physical address	
+
+
+3. PTE entry has the different pemissions for user and the kernel
+
+4. 4GB
+	 we have one page directory table for 1024 entrys which we called PDE
+	 and each PDE points to one page table, the page table has 1024 entries which we   called PTE, each PTE points one physical page.
+
+	That is to say.... 1024 * 1024 * 4KB = 2^32 = 4GB
+
+
+5. about 30000 pageinfo to manage memory, no we don't.
+	 the kernel is loaded into 0x10000 when first boot up, and there are IO space and IDT memory for special use.
+
+6. 
+
+	the code is 
+	'''
+		mov $relocated, %eax
+		jmp *%eax
+relocated:
+
+	we actually jump above the KERNBASE, that technique is called relocate.
+	GDT makes it possible so that we can run at eip's low level, but the transition 	is necessary. that's because our kern is linked above 0xf0100000 in the kernel.ld file.
+
