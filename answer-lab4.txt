@@ -1,0 +1,1 @@
+1. the kernel is linked and compiled to run above KERNBASE, but the load address is MPENTRYADDR which is low address, so when load the idt or gdt, we should give the real VMA to the register to run, the symbol is above KERNBASE, That's why we subtract the mpentry_start symbol address.

@@ -293,6 +293,17 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+	int i = 0;
+	//uintptr_t kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+	uintptr_t kstacktop_i = KSTACKTOP;
+	//[kstacktop_i - KSTKSIZE, kstacktop_i]
+	//[kstacktop_i - (KSTKSIZE + KSTKGAP), kstacktop_i - KSTKSIZE)
+	//
+	for(i = 0; i < NCPU; i++)//ncpu which is detected numbers of cpus
+	{
+		boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE , KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+		kstacktop_i = KSTACKTOP - (i + 1) * (KSTKSIZE + KSTKGAP);
+	}
 
 }
 
@@ -339,8 +350,15 @@ page_init(void)
 	// 1. page 0 is in use
 	pages[0].pp_ref = 0;
 	pages[0].pp_link = NULL;
+	int conend = MPENTRY_PADDR / PGSIZE;
 	// 2. base mem is free
 	for(i = PGSIZE / PGSIZE ; i < npages_basemem; i++){
+		// mark MPENTRY_PADDR page size is free
+		if(i == conend){
+			pages[i].pp_ref = 0;	
+			pages[i].pp_link = NULL;
+			continue;				
+		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -669,6 +687,13 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// value will be preserved between calls to mmio_map_region
 	// (just like nextfree in boot_alloc).
 	static uintptr_t base = MMIOBASE;
+	static char *nextfree = NULL;
+	char *result;
+
+	if(!nextfree){
+		nextfree = (char *)base;
+		result = nextfree;
+	}
 
 	// Reserve size bytes of virtual memory starting at base and
 	// map physical pages [pa,pa+size) to virtual addresses
@@ -688,7 +713,14 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	result = nextfree;
+	if(ROUNDUP(base + size, PGSIZE) > MMIOLIM)
+		panic("mmio_map_region overflow MMIOLIM");
+	boot_map_region(kern_pgdir, (uintptr_t )result, ROUNDUP(size, PGSIZE), pa, PTE_W | PTE_PCD | PTE_PWT);
+
+	nextfree += ROUNDUP(size, PGSIZE); 
+	//panic("mmio_map_region not implemented");
+	return (void *)result;	
 }
 
 static uintptr_t user_mem_check_addr;
