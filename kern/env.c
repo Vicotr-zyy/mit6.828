@@ -445,7 +445,7 @@ env_create(uint8_t *binary, enum EnvType type)
 	}
 	// 2.load binary into it
 	load_icode(env, binary);
-	cprintf("load_inode ok\n");
+	//cprintf("load_inode ok\n");
 	// 3.set its env_type
 	env->env_type = type;
 }
@@ -540,6 +540,8 @@ env_pop_tf(struct Trapframe *tf)
 	// Record the CPU we are running on for user-space debugging
 	curenv->env_cpunum = cpunum();
 
+	unlock_kernel();
+
 	asm volatile(
 		"\tmovl %0,%%esp\n"
 		"\tpopal\n"
@@ -591,6 +593,7 @@ env_run(struct Env *e)
 	lcr3(PADDR(curenv->env_pgdir));
 	// Step 2:
 	//
+
 	env_pop_tf(&curenv->env_tf);
 	// never gonna return
 

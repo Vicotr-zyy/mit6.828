@@ -1,1 +1,9 @@
 1. the kernel is linked and compiled to run above KERNBASE, but the load address is MPENTRYADDR which is low address, so when load the idt or gdt, we should give the real VMA to the register to run, the symbol is above KERNBASE, That's why we subtract the mpentry_start symbol address.
+
+
+2. Now we use giant kernel lock to ensure only one CPU can enter kernel code per time, however we need seperate Kstack for each CPU why?
+
+a scenario: using a shared kernel stack, and with the protection of the big kernel stack.
+One Cpu system call goes into kernel and get the kernel lock , then do some changes on the kernel stack, the other CPU runs in user space, at what some time it wants to get the kernel service using system call , but it doesn't for lack of lock. It is ok.
+ 
+one scenario: one CPU release kernel lock, and interrupted by a device IRQ and it should invoke the sleeping process, but at the same time the other CPU enters the kernel and mock the contents of kernel stack so it will cause some damage which can't recover.

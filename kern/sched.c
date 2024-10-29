@@ -29,7 +29,40 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
+	int i = 0;
+	if(curenv == NULL){
+		idle = &envs[0];
+		cprintf("cpu_num : %d\n", cpunum());
+		env_run(idle);
+		panic("no running environment!\n");
+	}
+	int run = curenv->env_status;
+	int curid = curenv - envs;
+	cprintf("env_id : %d\n", curid);
+	// search right after the previously running environment
+	for(i = curid; i < NENV; i++){
+		if(envs[i].env_status == ENV_RUNNABLE) break;
+	}
 
+	if(i == NENV){
+		// not find runnable right after curenv
+		// then research at the beginging of the envs[]
+		for(i = 0; i < curid; i++){
+			if(envs[i].env_status == ENV_RUNNABLE) break;
+		}
+		if(i == curid){
+			// not found one
+			if(run == ENV_RUNNING){
+				idle = &envs[curid];
+				env_run(idle);
+			}
+		}
+	}else{
+		//find one do dome change
+		curenv->env_status = ENV_RUNNABLE;
+		idle = &envs[i];
+		env_run(idle);
+	}
 	// sched_halt never returns
 	sched_halt();
 }
