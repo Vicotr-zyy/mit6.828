@@ -202,15 +202,17 @@ env_setup_vm(struct Env *e)
 	p->pp_ref++;
 	// use kern_pgdir as a template 
 	// above UTOP but set correct permissions
-	i = PDX(UPAGES);
-	e->env_pgdir[i] = kern_pgdir[i];
-	i = PDX(UENVS);
-	e->env_pgdir[i] = kern_pgdir[i];
+	//[ UPAGES : UVPT] include RO PAGES RO ENVS
+	for(i = PDX(UENVS); i < PDX(UVPT); i++){
+		e->env_pgdir[i] = kern_pgdir[i];
+	}
 	//kernel stack do what? env has one single KERNEL_STACK
-	i = PDX(KSTACKTOP-KSTKSIZE);
-	e->env_pgdir[i] = kern_pgdir[i];
-	//KERNBASE REMAP
-	for(i = PDX(KERNBASE); i < 1024; i++ ){
+	//i = PDX(KSTACKTOP-KSTKSIZE);
+	//e->env_pgdir[i] = kern_pgdir[i];
+	// KERNBASE REMAP
+	// MMIO REMAP
+	// Rest of the remap
+	for(i = PDX(MMIOBASE); i < 1024; i++ ){
 		e->env_pgdir[i] = kern_pgdir[i];
 	}
 	// except for above we don't set env page
@@ -275,7 +277,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_tf.tf_esp = USTACKTOP;
 	e->env_tf.tf_cs = GD_UT | 3;
 	// You will set e->env_tf.tf_eip later.
-
+	
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
 
@@ -312,6 +314,10 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   (Watch out for corner-cases!)
 	va = ROUNDDOWN(va, PGSIZE);
 	void * end = ROUNDUP(va + len, PGSIZE);
+
+	// debug when you operate the page you have to flush the tlb
+	tlbflush();
+
 	for(va; va < end; va += PGSIZE){
 		// allocate one page 
 		struct PageInfo * pg_info = page_alloc(0);
@@ -405,6 +411,7 @@ load_icode(struct Env *e, uint8_t *binary)
 			memmove((void *)ph->p_va, (void *)(binary + ph->p_offset), ph->p_filesz);
 			if(ph->p_filesz != ph->p_memsz)
 				memset((void *)ph->p_va + ph->p_filesz, 0 , ph->p_memsz - ph->p_filesz);
+			//cprintf("pa:0x%08x ph->filesz:0x%08x ph->p_memsz:0x%08x ph->p_va:0x%08x\n", page2pa(page_lookup(e->env_pgdir, (void *)ph->p_va, NULL)), ph->p_filesz, ph->p_memsz, ph->p_va);	
 		}
 		continue;
 	}
@@ -414,7 +421,8 @@ load_icode(struct Env *e, uint8_t *binary)
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 	// LAB 3: Your code here.
-	
+	// clear kern_pgdir remap
+
 	struct PageInfo *pg_info = page_alloc(0);
 	page_insert(e->env_pgdir, pg_info, (void *)(USTACKTOP-PGSIZE), PTE_U | PTE_W);
 	
@@ -553,7 +561,6 @@ env_pop_tf(struct Trapframe *tf)
 	panic("iret failed");  /* mostly to placate the compiler */
 }
 
-//
 // Context switch from curenv to env e.
 // Note: if this is the first call to env_run, curenv is NULL.
 //
@@ -587,13 +594,14 @@ env_run(struct Env *e)
 	}else{
 		// first initialization
 	}
+	// Context Save;
 	curenv = e;
+	// switch
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs ++;
 	lcr3(PADDR(curenv->env_pgdir));
 	// Step 2:
 	//
-
 	env_pop_tf(&curenv->env_tf);
 	// never gonna return
 

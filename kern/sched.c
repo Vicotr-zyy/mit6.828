@@ -27,22 +27,28 @@ sched_yield(void)
 	// another CPU (env_status == ENV_RUNNING). If there are
 	// no runnable environments, simply drop through to the code
 	// below to halt the cpu.
-
+	//
 	// LAB 4: Your code here.
+	//
 	int i = 0;
 	if(curenv == NULL){
-		idle = &envs[0];
-		cprintf("cpu_num : %d\n", cpunum());
+		//find RUNNABLE env to run
+		for(i = 0; i < NENV; i++) if(envs[i].env_status == ENV_RUNNABLE) break;
+		if( i == NENV)// no RUNNABLE ENV sch
+			sched_halt();
+		idle = &envs[i];
 		env_run(idle);
-		panic("no running environment!\n");
 	}
+
+	// Round-Robin Scheduler 
 	int run = curenv->env_status;
 	int curid = curenv - envs;
-	cprintf("env_id : %d\n", curid);
 	// search right after the previously running environment
 	for(i = curid; i < NENV; i++){
 		if(envs[i].env_status == ENV_RUNNABLE) break;
 	}
+	
+	assert(i >= 0);
 
 	if(i == NENV){
 		// not find runnable right after curenv
@@ -56,10 +62,15 @@ sched_yield(void)
 				idle = &envs[curid];
 				env_run(idle);
 			}
+		}else{
+			//found one
+			//
+			idle = &envs[i];
+			env_run(idle);
 		}
+		sched_halt();
 	}else{
 		//find one do dome change
-		curenv->env_status = ENV_RUNNABLE;
 		idle = &envs[i];
 		env_run(idle);
 	}
