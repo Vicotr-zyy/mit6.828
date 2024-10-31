@@ -26,3 +26,9 @@ iret
 contexts are copyed to Trapframe when in trap function, so neither of these two instructions chaneg TSS
 
 So the main point is curenv->env_tf = *tf tf equals the address the curenv->env_tf and we all konw the tf when pass in the kernel stack just for temporarily use, then save on the kernel data structure and do others things.
+
+3.
+Maybe TLB section, TLB buffers the recently used remap connection between va and pa.
+
+4. Because the saved registers can be restored whenever switched back, and in other words the regs saved are the sole state of one env.
+When: curenv->env_tf = *tf in trap.c file trap function
