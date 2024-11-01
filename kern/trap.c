@@ -303,6 +303,7 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 3: Your code here.
 	if((tf->tf_cs & 3 )== 0){
+		print_trapframe(tf);
 		panic("page-fault form kernel mode!");
 	}
 
@@ -339,8 +340,58 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	// page fault happended in user mode
+	// no page fault handler registered 
+	//user_mem_assert(curenv, (void *)(UXSTACKTOP - PGSIZE), PGSIZE, PTE_W);
 
+	if(curenv->env_pgfault_upcall == NULL){
+		// JOS destroys the user environment with a message
+		goto bad;
+	}
+	// check whether exception user stack is allocated or not
+	user_mem_assert(curenv, (void *)(UXSTACKTOP - PGSIZE), PGSIZE, PTE_W);
+	// otherwise set up the exception stack
+	// check whether we are in user exception user stack
+	//
+	uint32_t *sp = (uint32_t *)UXSTACKTOP;
+	if(tf->tf_esp >= (UXSTACKTOP-PGSIZE) && tf->tf_esp < UXSTACKTOP){
+		// handle recrusively call of user page fault handler
+		sp = (uint32_t *)tf->tf_esp;
+		*(--sp) = 0; //empty word
+	}	
+	
+	// check the user exception stack is overflowed or not
+	//user_mem_assert(curenv, (void *)sp, sizeof(struct UTrapframe), PTE_W);
+
+	*(--sp) = tf->tf_esp;
+	*(--sp) = tf->tf_eflags;
+	*(--sp) = tf->tf_eip;
+	*(--sp) = tf->tf_regs.reg_eax;
+	*(--sp) = tf->tf_regs.reg_ecx;
+	*(--sp) = tf->tf_regs.reg_edx;
+	*(--sp) = tf->tf_regs.reg_ebx;
+	*(--sp) = tf->tf_regs.reg_oesp;
+	*(--sp) = tf->tf_regs.reg_ebp;
+	*(--sp) = tf->tf_regs.reg_esi;
+	*(--sp) = tf->tf_regs.reg_edi;
+	*(--sp) = tf->tf_err;
+	*(--sp) = fault_va;
+	// push esp as an argument
+	uintptr_t entry = (uintptr_t)curenv->env_pgfault_upcall;
+	curenv->env_tf.tf_esp = (uintptr_t)sp;
+	curenv->env_tf.tf_eip = entry;
+
+	env_run(curenv);
+	//asm volatile(
+	//	"\tmovl %0, %%esp\n"
+	//	"\tljmp *%1\n"
+	//	: : "g" (sp) , "g" (entry): "memory");
+
+	// call the _pgfault_upcall
+	//((void (*)(void))(curenv->env_pgfault_upcall))();
+	//
 	// Destroy the environment that caused the fault.
+bad:
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
 	print_trapframe(tf);
