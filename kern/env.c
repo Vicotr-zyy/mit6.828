@@ -590,11 +590,10 @@ env_run(struct Env *e)
 	// Step 1:
 	if(curenv != NULL){
 		// a context switch
-		curenv->env_status = ENV_RUNNABLE;
-	}else{
-		// first initialization
+		if(curenv->env_status == ENV_RUNNING){
+			curenv->env_status = ENV_RUNNABLE;
+		}
 	}
-	// Context Save;
 	curenv = e;
 	// switch
 	curenv->env_status = ENV_RUNNING;

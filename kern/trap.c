@@ -205,6 +205,7 @@ trap_dispatch(struct Trapframe *tf)
 	
 	// timer handler
 	if(tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER){
+		//cprintf("time handler\n");
 		lapic_eoi();
 		sched_yield();
 		// switch

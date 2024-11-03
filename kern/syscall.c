@@ -157,11 +157,6 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	if(func == NULL)
 		return -E_INVAL;
 
-	// do some necessary check for address of func
-#if 0
-	if((uint32_t)func >= UTOP)
-		return -E_INVAL;
-#endif
 
 	env->env_pgfault_upcall = func;
 
@@ -356,6 +351,67 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
+	// Step 1. get the env of the envid receiver and do some necessary check
+	//
+	int p_flag = 0;
+	struct Env *env;
+	int ret = envid2env(envid, &env, 0);
+	if(ret < 0){
+		return -E_BAD_ENV;	
+	}
+	// Step 2. check srcva is below UTOP and send the page mapped at srcva
+
+	if(!env->env_ipc_recving){
+	// env is not currently blocked in sys_ipc_recv
+		//cprintf("env->env_id : %x env_status : %d\n", env->env_id, env->env_status);
+		return -E_IPC_NOT_RECV;
+	}
+
+	if(((uint32_t)srcva < UTOP) && ((uint32_t)srcva % PGSIZE != 0)){
+	}
+	if((uint32_t)srcva < UTOP){
+		if(((uint32_t)srcva % PGSIZE) != 0){
+			// need to send page but address is not aligned
+			return -E_INVAL;
+		}
+
+		if((perm & (~PTE_SYSCALL)) != 0){
+			// perm is not appropriate
+			return -E_INVAL;
+		}
+		// 
+		pte_t *pte;
+		struct PageInfo *pginfo = page_lookup(curenv->env_pgdir, srcva, &pte);
+		if(pginfo == NULL)
+			return -E_INVAL;
+	
+		if((perm & PTE_W) && ((*pte & PTE_W )== 0))
+			return -E_INVAL;
+
+		int r = page_insert(env->env_pgdir, pginfo, env->env_ipc_dstva, perm);
+		if(r < 0)
+			return -E_NO_MEM;
+
+		p_flag = 1;
+	}
+	// Step 3. update the target's ipc fields
+	// sending envid
+	env->env_ipc_from = curenv->env_id;
+	// real value
+	env->env_ipc_value = value;
+	// page transfered or not
+	env->env_ipc_perm = p_flag ? perm : 0;
+	// Step 4. reset the target is runnable again
+	env->env_tf.tf_regs.reg_eax = 0; // return from systemccall
+	env->env_status = ENV_RUNNABLE;
+
+	p_flag = 0; // for reuse
+							//
+	// clear the IPC receiving flag
+	env->env_ipc_recving = 0;
+
+	return 0; // for success
+
 	panic("sys_ipc_try_send not implemented");
 }
 
@@ -373,9 +429,28 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 static int
 sys_ipc_recv(void *dstva)
 {
+	// block
+	if(curenv->env_ipc_recving){
+		curenv->env_status = ENV_NOT_RUNNABLE;
+		sched_yield();
+	}
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
-	return 0;
+	// Step 1. do some necessary checks
+	if((uint32_t)dstva < UTOP){
+		if(((uint32_t)dstva % PGSIZE) != 0){
+			return -E_INVAL;
+		}
+		curenv->env_ipc_dstva = dstva;
+	}
+
+	// mark you wanna to recv data
+	// Step 2. mark self not runnable
+	// Step 3. yield and record and check
+	curenv->env_ipc_recving = 1;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	sched_yield();
+	//panic("sys_ipc_recv not implemented");
+	//
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -400,6 +475,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_page_map: ret = sys_page_map((envid_t)a1, (void *)a2, (envid_t)a3, (void *)a4, (int)a5); break;
 	case SYS_page_unmap: ret = sys_page_unmap((envid_t)a1, (void *)a2); break;
 	case SYS_env_set_pgfault_upcall: ret = sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2); break;
+	case SYS_ipc_try_send: ret = sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void*)a3, (unsigned)a4); break;
+	case SYS_ipc_recv: sys_ipc_recv((void *)a1); break;
 				
 	default:
 		return -E_INVAL;

@@ -44,7 +44,7 @@ sched_yield(void)
 	int run = curenv->env_status;
 	int curid = curenv - envs;
 	// search right after the previously running environment
-	for(i = curid; i < NENV; i++){
+	for(i = curid ; i < NENV; i++){
 		if(envs[i].env_status == ENV_RUNNABLE) break;
 	}
 	
