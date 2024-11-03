@@ -32,3 +32,19 @@ Maybe TLB section, TLB buffers the recently used remap connection between va and
 
 4. Because the saved registers can be restored whenever switched back, and in other words the regs saved are the sole state of one env.
 When: curenv->env_tf = *tf in trap.c file trap function
+
+
+uvpt and uvpd
+for user:
+uvpt->UVPT
+env_pgdir[PDX(UVPT)] = PADDR(env_pgdir) | PTE_U | PTE_P;
+which means that the 4MB of UVPT user address is mapped to env_pgdir itself.
+pte_t uvpt[0->1024 * 1024] is for one page number
+UVPT = 0xef400000
+UVPT + (UVPT >> 12) * 4
+pde_t uvpd[0->1024]
+worth drawing
+|
+|
+|
+|

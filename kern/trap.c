@@ -349,7 +349,8 @@ page_fault_handler(struct Trapframe *tf)
 		goto bad;
 	}
 	// check whether exception user stack is allocated or not
-	user_mem_assert(curenv, (void *)(UXSTACKTOP - PGSIZE), PGSIZE, PTE_W);
+	user_mem_assert(curenv, (void *)(UXSTACKTOP - 4), 4 , PTE_W);
+
 	// otherwise set up the exception stack
 	// check whether we are in user exception user stack
 	//
@@ -359,10 +360,8 @@ page_fault_handler(struct Trapframe *tf)
 		sp = (uint32_t *)tf->tf_esp;
 		*(--sp) = 0; //empty word
 	}	
-	
+	// cprintf("get there\n");
 	// check the user exception stack is overflowed or not
-	//user_mem_assert(curenv, (void *)sp, sizeof(struct UTrapframe), PTE_W);
-
 	*(--sp) = tf->tf_esp;
 	*(--sp) = tf->tf_eflags;
 	*(--sp) = tf->tf_eip;
@@ -378,6 +377,9 @@ page_fault_handler(struct Trapframe *tf)
 	*(--sp) = fault_va;
 	// push esp as an argument
 	uintptr_t entry = (uintptr_t)curenv->env_pgfault_upcall;
+
+	user_mem_assert(curenv, (void *)entry, 4, PTE_W );
+
 	curenv->env_tf.tf_esp = (uintptr_t)sp;
 	curenv->env_tf.tf_eip = entry;
 

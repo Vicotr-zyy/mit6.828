@@ -762,21 +762,26 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	//
 	unsigned char *addr = (unsigned char *)va;
 	int k = 0; // this needs to be concerned
+	struct PageInfo *pginfo;
 	pte_t *pte_store;
 	for(k; k <= len / PGSIZE ; k++){
-		page_lookup(curenv->env_pgdir, (void *)addr, &pte_store);	
-		if(pte_store == NULL){
+		pginfo = page_lookup(curenv->env_pgdir, (void *)addr, &pte_store);	
+
+		if(pginfo == NULL){
 			//not found an PTE
 			user_mem_check_addr = (uintptr_t)addr;
 			return -E_FAULT;
 		}
+
 		if(((*pte_store ) & (perm | PTE_P)) <= 0){
 			user_mem_check_addr = (uintptr_t)addr;
 			return -E_FAULT;
 		}
+
 		addr = ROUNDUP(addr, PGSIZE);
 		addr += PGSIZE;
 	}
+
 	return 0;
 }
 

@@ -95,6 +95,8 @@ sys_exofork(void)
 	// copy regs set from parent to env
 	env->env_tf = curenv->env_tf;	
 	env->env_tf.tf_regs.reg_eax = 0;
+	// initialize the handler
+	env->env_pgfault_upcall = curenv->env_pgfault_upcall;
 	// LAB 4: Your code here.
 	return env->env_id;
 bad:
@@ -154,6 +156,12 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 
 	if(func == NULL)
 		return -E_INVAL;
+
+	// do some necessary check for address of func
+#if 0
+	if((uint32_t)func >= UTOP)
+		return -E_INVAL;
+#endif
 
 	env->env_pgfault_upcall = func;
 
@@ -264,10 +272,11 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	if(pginfo == NULL)
 		return -E_INVAL;
 	
-	if((perm & PTE_W) && *pte & (PTE_W == 0))
+	if((perm & PTE_W) && ((*pte & PTE_W )== 0))
 		return -E_INVAL;
 
 	ret = page_insert(envdst->env_pgdir, pginfo, dstva, perm);
+
 	if(ret < 0)
 		return ret;
 

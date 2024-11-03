@@ -277,7 +277,6 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_tf.tf_esp = USTACKTOP;
 	e->env_tf.tf_cs = GD_UT | 3;
 	// You will set e->env_tf.tf_eip later.
-	
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
 
@@ -425,9 +424,6 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	struct PageInfo *pg_info = page_alloc(0);
 	page_insert(e->env_pgdir, pg_info, (void *)(USTACKTOP-PGSIZE), PTE_U | PTE_W);
-	
-	pg_info = page_alloc(0);
-	page_insert(e->env_pgdir, pg_info, (void *)(UXSTACKTOP-PGSIZE), PTE_U | PTE_W);
 	return ;
 
 bad:
