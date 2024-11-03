@@ -83,6 +83,11 @@ trap_init(void)
 	}
 	// int 0x30 for system call
 	SETGATE(idt[48], 0, GD_KT, handlers[20], 3);
+	// device handler 
+	for(i = IRQ_OFFSET; i < IRQ_OFFSET + 15; i++){
+		SETGATE(idt[i], 0, GD_KT, handlers[20 + i - IRQ_OFFSET + 1], 0);
+	}
+	
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -197,6 +202,13 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
+	
+	// timer handler
+	if(tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER){
+		lapic_eoi();
+		sched_yield();
+		// switch
+	}
 
 	
 	//page fault
