@@ -214,7 +214,18 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+	int r;
+	struct OpenFile *o;
+	// Step 1. use openfile_lookup to find the relevant open file
+	if((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+
+	// Step 2. call the relevant file system function
+	r = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset);
+	// Step 3. update the seek position
+	o->o_fd->fd_offset += r;
+	// Step 4. return the number of bytes read
+	return r;
 }
 
 
@@ -229,7 +240,21 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	int r;
+	struct OpenFile *o;
+	// Step 1. use openfile_lookup to find the relevant open file
+	if((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+
+	// Step 2. call the relevant file system function
+	r = file_write(o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset);
+	// Step 3. update the seek position
+	if(r < 0)
+		return r;
+	o->o_fd->fd_offset += r;
+	// Step 4. return the number of bytes read
+	return r;
+	//panic("serve_write not implemented");
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
