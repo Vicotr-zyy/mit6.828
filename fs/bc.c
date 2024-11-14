@@ -32,7 +32,6 @@ bc_pgfault(struct UTrapframe *utf)
 	void *addr = (void *) utf->utf_fault_va;
 	uint32_t blockno = ((uint32_t)addr - DISKMAP) / BLKSIZE;
 	int r;
-
 	// Check that the fault was within the block cache region
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
 		panic("page fault in FS: eip %08x, va %08x, err %04x",
@@ -48,6 +47,14 @@ bc_pgfault(struct UTrapframe *utf)
 	// the disk.
 	//
 	// LAB 5: you code here:
+	// Step 1. round the addr to page aligned
+	addr = ROUNDDOWN(addr, BLKSIZE); //
+	// Step 2. allocate one page from kernel
+	if((r = sys_page_alloc(sys_getenvid(), (void *)addr, PTE_U | PTE_W | PTE_P)) < 0){
+		panic("in bc_pgfault, sys_page_alloc: %e", r);
+	}
+	// Step 3. read the block from disk
+	ide_read(BLKSECTS*blockno, addr, BLKSECTS);
 
 	// Clear the dirty bit for the disk block page since we just read the
 	// block from disk
@@ -72,11 +79,32 @@ void
 flush_block(void *addr)
 {
 	uint32_t blockno = ((uint32_t)addr - DISKMAP) / BLKSIZE;
+	int r;
 
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
 		panic("flush_block of bad va %08x", addr);
-
 	// LAB 5: Your code here.
+	// Step 1. Rounddown the page addr to PGSIZE
+	addr = ROUNDDOWN(addr, BLKSIZE);
+	// Step 2. do dome necessary check
+	if(!va_is_mapped(addr)){
+		cprintf("flush unmap va \n");
+		return;
+	}
+	if(!va_is_dirty(addr)){
+		cprintf("flush undirty va \n");
+		return;
+	}
+	// Step 3. flush out
+	ide_write(BLKSECTS * blockno, addr, BLKSECTS);
+	// Step 4. clear PTE_D bit
+	// Clear the dirty bit for the disk block page since we just read the
+	// block from disk
+	if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
+		panic("in bc_pgfault, sys_page_map: %e", r);
+
+	return;
+
 	panic("flush_block not implemented");
 }
 

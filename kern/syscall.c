@@ -220,7 +220,9 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	}
 
 	struct PageInfo *pginfo = page_alloc(ALLOC_ZERO);
+
 	ret = page_insert(env->env_pgdir, pginfo, va, perm);
+
 	if(ret < 0){
 		page_free(pginfo);
 		return ret;
@@ -268,6 +270,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	if(ret < 0){
 		return -E_BAD_ENV;	
 	}
+
 	if((uintptr_t)srcva >= UTOP || (uintptr_t)srcva % PGSIZE != 0)	
 		return -E_INVAL;
 
@@ -282,6 +285,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	if((perm & PTE_W) && ((*pte & PTE_W )== 0))
 		return -E_INVAL;
 
+	// bug prone
 	ret = page_insert(envdst->env_pgdir, pginfo, dstva, perm);
 
 	if(ret < 0)

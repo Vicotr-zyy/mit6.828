@@ -582,10 +582,19 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 		return -E_NO_MEM;
 	}
 	if(*p_pte){
-		page_remove(pgdir, va);
-	}	
-	pp->pp_ref++;
-	*p_pte = page2pa(pp) |	perm | PTE_P;
+		//do some necessary check
+		if((*p_pte & (~0x3ff)) != page2pa(pp)){
+			page_remove(pgdir, va);
+			pp->pp_ref++;
+			*p_pte = page2pa(pp) |	perm | PTE_P;
+		}else{
+			//just change the perm of the pte
+			*p_pte = page2pa(pp) |	perm | PTE_P;
+		}
+	}else{
+		pp->pp_ref++;
+		*p_pte = page2pa(pp) |	perm | PTE_P;
+	}
 	
 	if(pp == page_free_list){
 		// handle the Corner-case hint

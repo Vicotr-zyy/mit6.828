@@ -443,7 +443,6 @@ bad:
 void
 env_create(uint8_t *binary, enum EnvType type)
 {
-	// LAB 3: Your code here.
 	// If this is the file server (type == ENV_TYPE_FS) give it I/O privileges.
 	// LAB 5: Your code here.
 	// 1.allocate a new env
@@ -458,6 +457,10 @@ env_create(uint8_t *binary, enum EnvType type)
 	//cprintf("load_inode ok\n");
 	// 3.set its env_type
 	env->env_type = type;
+	if(type == ENV_TYPE_FS){
+		env->env_tf.tf_eflags &= (~FL_IOPL_MASK);
+		env->env_tf.tf_eflags |= FL_IOPL_3; // detail explantion
+	}
 }
 
 //

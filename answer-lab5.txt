@@ -1,0 +1,6 @@
+The goal for this lab is not to have you implement the entire file system, but for you to implement only certain key components.
+Because you will not be implementing all of the file system yourself, it is very important that you familiarize yourself with the provided code and the various file system interfaces.
+
+
+Q1:
+There is no need to do because when the switch begins , the ELFAGS is stored in env's trap_frame, and pop to ELFAGS when switched back.
