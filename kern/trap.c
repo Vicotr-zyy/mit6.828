@@ -84,6 +84,7 @@ trap_init(void)
 	// int 0x30 for system call
 	SETGATE(idt[48], 0, GD_KT, handlers[20], 3);
 	// device handler 
+	cprintf("IRQ_OFFSET : %d\n", IRQ_OFFSET);
 	for(i = IRQ_OFFSET; i < IRQ_OFFSET + 15; i++){
 		SETGATE(idt[i], 0, GD_KT, handlers[20 + i - IRQ_OFFSET + 1], 0);
 	}
@@ -213,6 +214,14 @@ trap_dispatch(struct Trapframe *tf)
 
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
+	if(tf->tf_trapno == IRQ_OFFSET + IRQ_KBD){
+		kbd_intr();
+		return;
+	}
+	if(tf->tf_trapno == IRQ_OFFSET + IRQ_SERIAL){
+		serial_intr();
+		return;
+	}
 	
 	//page fault
 	if(tf->tf_trapno == T_PGFLT){
