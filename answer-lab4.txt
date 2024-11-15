@@ -1,0 +1,50 @@
+1. the kernel is linked and compiled to run above KERNBASE, but the load address is MPENTRYADDR which is low address, so when load the idt or gdt, we should give the real VMA to the register to run, the symbol is above KERNBASE, That's why we subtract the mpentry_start symbol address.
+
+
+2. Now we use giant kernel lock to ensure only one CPU can enter kernel code per time, however we need seperate Kstack for each CPU why?
+
+a scenario: using a shared kernel stack, and with the protection of the big kernel stack.
+One Cpu system call goes into kernel and get the kernel lock , then do some changes on the kernel stack, the other CPU runs in user space, at what some time it wants to get the kernel service using system call , but it doesn't for lack of lock. It is ok.
+ 
+one scenario: one CPU release kernel lock, and interrupted by a device IRQ and it should invoke the sleeping process, but at the same time the other CPU enters the kernel and mock the contents of kernel stack so it will cause some damage which can't recover.
+
+
+Q & A: TSS
+KSTACKTOP 0xf0000000
+in kernel: esp -> 0xf0126fb0
+env0 trapframe -> 0xf03b2000 iret esp = 0xf03b2030
+iret to first user space user esp = 0xeebfe000 USTACKTOP
+when first system call dives into the kernel
+int 0x30
+eps = 0xefffffe8
+system call not change TSS esp
+
+sched_yield yield
+movl %0 , %esp
+iret 
+
+contexts are copyed to Trapframe when in trap function, so neither of these two instructions chaneg TSS
+
+So the main point is curenv->env_tf = *tf tf equals the address the curenv->env_tf and we all konw the tf when pass in the kernel stack just for temporarily use, then save on the kernel data structure and do others things.
+
+3.
+Maybe TLB section, TLB buffers the recently used remap connection between va and pa.
+
+4. Because the saved registers can be restored whenever switched back, and in other words the regs saved are the sole state of one env.
+When: curenv->env_tf = *tf in trap.c file trap function
+
+
+uvpt and uvpd
+for user:
+uvpt->UVPT
+env_pgdir[PDX(UVPT)] = PADDR(env_pgdir) | PTE_U | PTE_P;
+which means that the 4MB of UVPT user address is mapped to env_pgdir itself.
+pte_t uvpt[0->1024 * 1024] is for one page number
+UVPT = 0xef400000
+UVPT + (UVPT >> 12) * 4
+pde_t uvpd[0->1024]
+worth drawing
+|
+|
+|
+|

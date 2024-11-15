@@ -32,6 +32,7 @@ TOP = .
 # using a different name, set GCCPREFIX explicitly in conf/env.mk
 
 # try to infer the correct GCCPREFIX
+GCCPREFIX =i386-jos-elf-
 ifndef GCCPREFIX
 GCCPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
 	then echo 'i386-jos-elf-'; \
@@ -48,6 +49,7 @@ GCCPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/de
 endif
 
 # try to infer the correct QEMU
+QEMU = /opt/qemu_2.3.0/bin/qemu-system-i386
 ifndef QEMU
 QEMU := $(shell if which qemu >/dev/null 2>&1; \
 	then echo qemu; exit; \
@@ -87,7 +89,9 @@ CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-builtin -I$(TOP) -MD
 CFLAGS += -fno-omit-frame-pointer
 CFLAGS += -std=gnu99
 CFLAGS += -static
-CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32
+CFLAGS += -Wall -Wno-format -Wno-unused -Werror -m32 -gstabs
+#CFLAGS += -fno-pic
+
 # -fno-tree-ch prevented gcc from sometimes reordering read_ebp() before
 # mon_backtrace()'s function prologue on gcc version: (Debian 4.7.2-5) 4.7.2
 CFLAGS += -fno-tree-ch
@@ -165,6 +169,9 @@ QEMUOPTS += $(QEMUEXTRA)
 .gdbinit: .gdbinit.tmpl
 	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
 
+
+# $(GCCPREFIX)gdb -n -x .gdbinit
+
 gdb:
 	gdb -n -x .gdbinit
 
@@ -205,6 +212,8 @@ clean:
 
 realclean: clean
 	rm -rf lab$(LAB).tar.gz \
+		lab$(LAB)-handin.tar.gz \
+		gradelib.pyc \
 		jos.out $(wildcard jos.out.*) \
 		qemu.pcap $(wildcard qemu.pcap.*) \
 		myapi.key
