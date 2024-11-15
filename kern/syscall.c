@@ -145,6 +145,20 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// LAB 5: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
+	// Step 1. do some necessary check
+	struct Env *env;
+	int ret = envid2env(envid, &env, 1);
+	if(ret < 0){
+		return -E_BAD_ENV;	
+	}
+	// Step 2. set env->env_tf is *tf
+	env->env_tf = *tf;
+	// Step 3. make sure CPL 3 / interrupted enabled / IOPL 0
+	// env->env_tf.tf_cs = GD_UT | 3;
+	// env->env_tf.tf_eflags |= FL_IOPL_0;
+	// env->env_tf.tf_eflags |= FL_TF;
+	return 0; // on success
+						//
 	panic("sys_env_set_trapframe not implemented");
 }
 
@@ -493,7 +507,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_env_set_pgfault_upcall: ret = sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2); break;
 	case SYS_ipc_try_send: ret = sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void*)a3, (unsigned)a4); break;
 	case SYS_ipc_recv: sys_ipc_recv((void *)a1); break;
-				
+	case SYS_env_set_trapframe: ret = sys_env_set_trapframe((envid_t)a1, (struct Trapframe*)a2); break;
+
 	default:
 		return -E_INVAL;
 	}

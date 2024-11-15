@@ -88,11 +88,11 @@ flush_block(void *addr)
 	addr = ROUNDDOWN(addr, BLKSIZE);
 	// Step 2. do dome necessary check
 	if(!va_is_mapped(addr)){
-		cprintf("flush unmap va \n");
+		//cprintf("flush unmap va \n");
 		return;
 	}
 	if(!va_is_dirty(addr)){
-		cprintf("flush undirty va \n");
+		//cprintf("flush undirty va \n");
 		return;
 	}
 	// Step 3. flush out
