@@ -77,7 +77,6 @@ duppage(envid_t envid, unsigned pn)
 	perm = uvpt[pn] & PTE_SYSCALL;
 	// LAB 4: Your code here.
 	if(uvpt[pn] & PTE_SHARE){
-		cprintf("PTE_SHARE addr : 0x%08x\n", pn * PGSIZE);
 		r = sys_page_map(sys_getenvid(), (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_SHARE | PTE_U | perm);
 		if(r < 0)
 			goto error;

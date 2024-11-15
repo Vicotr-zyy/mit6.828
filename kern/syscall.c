@@ -154,9 +154,10 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// Step 2. set env->env_tf is *tf
 	env->env_tf = *tf;
 	// Step 3. make sure CPL 3 / interrupted enabled / IOPL 0
-	// env->env_tf.tf_cs = GD_UT | 3;
-	// env->env_tf.tf_eflags |= FL_IOPL_0;
-	// env->env_tf.tf_eflags |= FL_TF;
+	env->env_tf.tf_cs = GD_UT | 3;
+	env->env_tf.tf_eflags &= (~FL_IOPL_MASK);
+	env->env_tf.tf_eflags = FL_IOPL_0;
+	env->env_tf.tf_eflags |= FL_IF;
 	return 0; // on success
 						//
 	panic("sys_env_set_trapframe not implemented");
