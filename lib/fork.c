@@ -72,27 +72,41 @@ pgfault(struct UTrapframe *utf)
 static int
 duppage(envid_t envid, unsigned pn)
 {
-	int r;
-	// cprintf("pn : %d\n", pn);	
+	int r = 0;
+	int perm;
+	perm = uvpt[pn] & PTE_SYSCALL;
 	// LAB 4: Your code here.
-	// Step 1. map the page copy-on-write
-	r = sys_page_map(sys_getenvid(), (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_COW | PTE_U);
-	if( r < 0 ){
-		panic("sys_page_map: %e", r);
+	if(uvpt[pn] & PTE_SHARE){
+		cprintf("PTE_SHARE addr : 0x%08x\n", pn * PGSIZE);
+		r = sys_page_map(sys_getenvid(), (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_SHARE | PTE_U | perm);
+		if(r < 0)
+			goto error;
+		return 0;
 	}
-	// Step 2. remap the page copy-on-write
+
+	if((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)){
+		// Step 1. map the page copy-on-write
+		r = sys_page_map(sys_getenvid(), (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_COW | PTE_U);
+		if(r < 0)
+			goto error;
+		// Step 2. remap the page copy-on-write
+		r = sys_page_map(sys_getenvid(), (void *)(pn * PGSIZE), sys_getenvid(), (void *)(pn * PGSIZE), PTE_COW | PTE_U);
+		if(r < 0)
+			goto error;
+		return 0;
+	}
 	// how to remap
 	//
-	// cprintf("pn * PGSIZE = 0x%08x\n", pn * PGSIZE);
-
-	r = sys_page_map(sys_getenvid(), (void *)(pn * PGSIZE), sys_getenvid(), (void *)(pn * PGSIZE), PTE_COW | PTE_U);
-
-	if( r < 0 ){
-		panic("sys_page_map: %e", r);
+	// read-only page just map
+	if(uvpt[pn] & PTE_P){
+		r = sys_page_map(sys_getenvid(), (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_U | perm);
+		if(r < 0)
+			goto error;
+		return 0;
 	}
 
-	//panic("duppage not implemented");
-	return 0;
+error:
+	panic("sys_page_map: %e", r);
 }
 
 //
@@ -115,7 +129,7 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	int r;
+	int r = 0;
 	int pn = 0;
 	int j = 0;
 	int flag = 0;
@@ -144,11 +158,9 @@ fork(void)
 					flag = 1;
 					break;
 				}
-				if((uvpt[j] & PTE_W) || (uvpt[j] & PTE_COW)){
+				// just use one function to eliminate the complexity of fork
+				if(uvpt[j] & PTE_P){
 					duppage(envid, j);	
-				}else if(uvpt[j] & PTE_P){
-				// read-only page just map
-					sys_page_map(sys_getenvid(), (void *)(j * PGSIZE), envid, (void *)(j * PGSIZE), PTE_U);
 				}
 			}
 		}	
