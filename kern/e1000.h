@@ -31,17 +31,44 @@
 #define E1000_TCTL_NRTU   0x02000000    /* No Re-transmit on underrun */
 #define E1000_TCTL_MULR   0x10000000    /* Multiple request support */
 
+#define E1000_TXD_CMD_EOP    0x01000000 /* End of Packet */
+#define E1000_TXD_CMD_IFCS   0x02000000 /* Insert FCS (Ethernet CRC) */
+#define E1000_TXD_CMD_IC     0x04000000 /* Insert Checksum */
+#define E1000_TXD_CMD_RS     0x08000000 /* Report Status */
+#define E1000_TXD_CMD_RPS    0x10000000 /* Report Packet Sent */
+#define E1000_TXD_CMD_DEXT   0x20000000 /* Descriptor extension (0 = legacy) */
+#define E1000_TXD_CMD_VLE    0x40000000 /* Add VLAN tag */
+#define E1000_TXD_CMD_IDE    0x80000000 /* Enable Tidv register */
+#define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
+#define E1000_TXD_STAT_EC    0x00000002 /* Excess Collisions */
+#define E1000_TXD_STAT_LC    0x00000004 /* Late Collisions */
+#define E1000_TXD_STAT_TU    0x00000008 /* Transmit underrun */
 
-int pci_e1000_attach(struct pci_func *pcif);
 
 struct tx_desc{
 	uint64_t addr;
-	uint16_t length;
-	uint8_t cso;
-	uint8_t cmd;
-	uint8_t status;
-	uint8_t css;
-	uint16_t special;
+
+	// lower
+	union {
+		uint32_t data;
+		struct {
+			uint16_t length;
+			uint8_t cso;
+			uint8_t cmd;
+		}flags;
+	} lower;
+
+	// upper
+	union {
+		uint32_t data;
+		union {
+			uint8_t status;
+			uint8_t css;
+			uint16_t special;
+		} fields;
+	}upper;
 };
 
+int pci_e1000_attach(struct pci_func *pcif);
+int transmit_pack(const char *data, int len);
 #endif	// JOS_KERN_E1000_H

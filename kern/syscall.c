@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -495,6 +496,26 @@ sys_time_msec(void)
 	//panic("sys_time_msec not implemented");
 }
 
+// transmit packet from user space
+static int
+sys_pack_send(const char *data, int len)
+{
+	int r;
+	// Step 1. do some necessary check
+	user_mem_assert(curenv, (void *)data, len, PTE_U);
+
+	if((uintptr_t)data >= UTOP || (uintptr_t)(data + len) >= UTOP)	
+		return -E_INVAL;
+
+	// Step 2. send packet through Ethercard
+	r = transmit_pack(data, len);
+
+	if(r < 0){
+		panic("sys_pack_send error : %e \n", r);
+	}
+
+	return r;
+}
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -521,6 +542,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_ipc_recv: sys_ipc_recv((void *)a1); break;
 	case SYS_env_set_trapframe: ret = sys_env_set_trapframe((envid_t)a1, (struct Trapframe*)a2); break;
 	case SYS_time_msec: ret = sys_time_msec(); break;
+	case SYS_pack_send: ret = sys_pack_send((const char *)a1, (int)a2); break;
 
 	default:
 		return -E_INVAL;
