@@ -18,3 +18,7 @@
 /.suf
 /__pycache__
 /*.swp
+/kern/*.swp
+/inc/*.swp
+/lib/*.swp
+/boot/*.swp

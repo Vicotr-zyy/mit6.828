@@ -85,7 +85,6 @@ trap_init(void)
 	// int 0x30 for system call
 	SETGATE(idt[48], 0, GD_KT, handlers[20], 3);
 	// device handler 
-	cprintf("IRQ_OFFSET : %d\n", IRQ_OFFSET);
 	for(i = IRQ_OFFSET; i < IRQ_OFFSET + 15; i++){
 		SETGATE(idt[i], 0, GD_KT, handlers[20 + i - IRQ_OFFSET + 1], 0);
 	}
