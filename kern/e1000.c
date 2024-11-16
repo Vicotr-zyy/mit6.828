@@ -1,5 +1,6 @@
 #include <kern/e1000.h>
 
+#define TEST_PACK 0
 // LAB 6: Your driver code here
 #include <inc/x86.h>
 #include <inc/assert.h>
@@ -41,8 +42,10 @@ pci_e1000_attach(struct pci_func *pcif)
 	cprintf("Transmit Initialization Starting *******\n");
 	transmit_init();
 	// Step 4. transmit a message for test from kernel
+#if TEST_PACK
 	transmit_pack("zhangyanyuan", 10);
 	transmit_pack("hello", 5);
+#endif 
 	return 1;
 }
 
@@ -93,6 +96,7 @@ transmit_pack(const char *data, int len)
 	if((c_tx.upper.data & E1000_TXD_STAT_DD) == 0){
 		// the queue is full
 		// send message to user to resend the message
+		cprintf("index = %d\n", index);
 		return -E_NO_MEM;
 	}
 	// Step 2. prepare a packet that's about to send
@@ -109,7 +113,8 @@ transmit_pack(const char *data, int len)
 	c_tx.lower.flags.length = len;
 	//cprintf("c_tx.lower : 0x%08x\n", c_tx.lower.data);
 	// Step 3. copy to the descriptor buffer
-	tx_desc_buffer[(index++ % tx_desc_len)] = c_tx;
+	tx_desc_buffer[index] = c_tx;
+	index = (index + 1) % tx_desc_len;
 	// Step 4. update the TDT
 	e1000[E1000_TDT] = index;
 

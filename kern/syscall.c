@@ -503,7 +503,7 @@ sys_pack_send(const char *data, int len)
 	int r;
 	// Step 1. do some necessary check
 	//
-	cprintf("curenv : %x data addr : 0x%08x len : %d\n", curenv->env_id, data, len);
+	//cprintf("curenv : %x data addr : 0x%08x len : %d\n", curenv->env_id, data, len);
 	user_mem_assert(curenv, (void *)data, len, PTE_U);
 
 	if((uintptr_t)data >= UTOP || (uintptr_t)(data + len) >= UTOP)	
@@ -511,7 +511,9 @@ sys_pack_send(const char *data, int len)
 
 	// Step 2. send packet through Ethercard
 	r = transmit_pack(data, len);
+	if(r == -E_NO_MEM){
 
+	}
 	if(r < 0){
 		panic("sys_pack_send error : %e \n", r);
 	}

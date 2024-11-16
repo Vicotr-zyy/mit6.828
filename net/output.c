@@ -29,7 +29,7 @@ output(envid_t ns_envid)
 		if(recv == NSREQ_OUTPUT){
 			// the ns sent and the message is really NSREQ_OUTPUT
 			struct jif_pkt *pkt = (struct jif_pkt *)REQVA;
-			cprintf("recv form %x addr : 0x%08x pkt->jp_len : %d\n", whom, pkt->jp_data, pkt->jp_len);
+			//cprintf("recv form %x addr : 0x%08x pkt->jp_len : %d\n", whom, pkt->jp_data, pkt->jp_len);
 			sys_pack_send(pkt->jp_data, pkt->jp_len);
 		}
 
