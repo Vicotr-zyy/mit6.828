@@ -82,7 +82,7 @@ low_level_output(struct netif *netif, struct pbuf *p)
 {
     int r = sys_page_alloc(0, (void *)PKTMAP, PTE_U|PTE_W|PTE_P);
     if (r < 0)
-	panic("jif: could not allocate page of memory");
+			panic("jif: could not allocate page of memory");
     struct jif_pkt *pkt = (struct jif_pkt *)PKTMAP;
 
     struct jif *jif;
@@ -96,10 +96,10 @@ low_level_output(struct netif *netif, struct pbuf *p)
 	   time. The size of the data in each pbuf is kept in the ->len
 	   variable. */
 
-	if (txsize + q->len > 2000)
-	    panic("oversized packet, fragment %d txsize %d\n", q->len, txsize);
-	memcpy(&txbuf[txsize], q->payload, q->len);
-	txsize += q->len;
+			if (txsize + q->len > 2000)
+	   		panic("oversized packet, fragment %d txsize %d\n", q->len, txsize);
+			memcpy(&txbuf[txsize], q->payload, q->len);
+			txsize += q->len;
     }
 
     pkt->jp_len = txsize;

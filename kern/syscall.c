@@ -502,6 +502,8 @@ sys_pack_send(const char *data, int len)
 {
 	int r;
 	// Step 1. do some necessary check
+	//
+	cprintf("curenv : %x data addr : 0x%08x len : %d\n", curenv->env_id, data, len);
 	user_mem_assert(curenv, (void *)data, len, PTE_U);
 
 	if((uintptr_t)data >= UTOP || (uintptr_t)(data + len) >= UTOP)	
