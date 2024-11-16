@@ -400,6 +400,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	}
 
 	if(((uint32_t)srcva < UTOP) && ((uint32_t)srcva % PGSIZE != 0)){
+		return -E_INVAL;
 	}
 	if((uint32_t)srcva < UTOP){
 		if(((uint32_t)srcva % PGSIZE) != 0){

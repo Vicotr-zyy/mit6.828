@@ -68,9 +68,9 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 	// keeps trying until it succeeds
 	while((r = sys_ipc_try_send(to_env, val, srcva, perm)) < 0){
 		if(r != -E_IPC_NOT_RECV){
+			cprintf("err : %e thisenv->envid : %x env_status : %d\n", r, thisenv->env_id, thisenv->env_status);
 			panic("sys_ipc_send panic");
 		}
-		// cprintf("thisenv->envid : %x env_status : %d\n", thisenv->env_id, thisenv->env_status);
 		// maybe other is now sending someting just yield the CPU 
 		// if we regain the CPU control we kept trying to resend
 		sys_yield();
