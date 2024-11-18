@@ -1,0 +1,8 @@
+1. structure the transmit implementation
+transmit_send(data, len)
+when the packet is full then ring back (index + 1) % tx_desc_len
+
+but when it's really full ,just return -E_NO_MEM to sys_pack_send
+then the syscall will do some ipc_message to tell the caller it's full and you
+need to resend or what.
+

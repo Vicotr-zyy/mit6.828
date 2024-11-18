@@ -5,6 +5,7 @@ static envid_t output_envid;
 static envid_t input_envid;
 
 static struct jif_pkt *pkt = (struct jif_pkt*)REQVA;
+static void hexdump(const char *prefix, const void *data, int len);
 
 
 static void
@@ -38,7 +39,7 @@ announce(void)
 	memcpy(arp->sipaddr.addrw, &myip, 4);
 	memset(arp->dhwaddr.addr,  0x00,  ETHARP_HWADDR_LEN);
 	memcpy(arp->dipaddr.addrw, &gwip, 4);
-
+	
 	ipc_send(output_envid, NSREQ_OUTPUT, pkt, PTE_P|PTE_W|PTE_U);
 	sys_page_unmap(0, pkt);
 }

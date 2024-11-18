@@ -23,7 +23,13 @@ static struct tx_desc tx_desc_buffer[tx_desc_len];
 // Transmit packets buffers
 static char packet_buffer[tx_desc_len][1024];
 
+#define rx_desc_len 128
+__attribute__((__aligned__(16)))
+static struct rx_desc rx_desc_buffer[rx_desc_len];
+static char receive_buffer[rx_desc_len][1024];
+
 static void transmit_init();
+static void receive_init();
 
 int 
 pci_e1000_attach(struct pci_func *pcif)
@@ -39,13 +45,16 @@ pci_e1000_attach(struct pci_func *pcif)
 	e1000 = mmio_map_region(pcif->reg_base[0], pcif->reg_size[0]);
 	cprintf("e1000_status : 0x%08x\n", e1000[E1000_STATUS]); 
 	// Step 3. Transmit Initialization
-	cprintf("Transmit Initialization Starting *******\n");
+	cprintf("Transmit Initialization Starting ....\n");
 	transmit_init();
 	// Step 4. transmit a message for test from kernel
 #if TEST_PACK
 	transmit_pack("zhangyanyuan", 10);
 	transmit_pack("hello", 5);
 #endif 
+	// Step 5. Receive Initialization
+	cprintf("Receive Initialization Starting ....\n");
+	receive_init();
 	return 1;
 }
 
@@ -103,7 +112,9 @@ transmit_pack(const char *data, int len)
 	// struct PageInfo * pginfo = page_alloc(ALLOC_ZERO);
 	// page_insert(kern_pgdir, pginfo, 
 
-	strncpy(packet_buffer[index], data, len);
+	memmove(packet_buffer[index], data, len);
+	//hexdump("in kern e1000_driver:  ",packet_buffer[index], len);
+	//hexdump("in kern e1000_driver_raw:  ",data, len);
 	//tlb_invalidate(kern_pgdir, packet_buffer[index]);
 	c_tx.lower.data |= E1000_TXD_CMD_RS;
 	c_tx.lower.data |= E1000_TXD_CMD_EOP;
@@ -121,3 +132,85 @@ transmit_pack(const char *data, int len)
 	return 0;
 }
 
+static void 
+receive_init()
+{
+	// Step 1. Program the RAL/RAH with the desired Ethernet address (MAC)
+	// by default, 
+	// the card will filter out all packets. 
+	// You have to configure the Receive Address Registers (RAL and RAH) 
+	// with the card's own MAC address 
+	// in order to accept packets addressed to that card. 
+	// MAC(52:54:00:12:34:56) RAL0 RAH0
+	// RAL0 -> lower 32-bit of the 48-bit MAC address
+	//e1000[E1000_RAL0] = 0x52540012;
+	e1000[E1000_RAL0] = 0x12005452;
+	// RAH0 -> higher 16-bit of the 48-bit MAC address
+	e1000[E1000_RAH0] = 0x00005634;
+	//e1000[E1000_RAH0] = 0x00003456;
+	e1000[E1000_RAH0] |= E1000_RAH_AV;
+	// Step 2. initialize the MTA -> 0b no multicast
+	e1000[E1000_MTA] = 0x0;
+	// Step 3. Program the interrupt Mask set and read
+	// we disable all the interrupts for receive
+	// write 1b to the corresponding bit in IMC reg 
+	e1000[E1000_IMS] = 0x00;
+	// e1000[E1000_IMC] = 0xffffffff;
+	// Step 4. allocate a region for rx_desc must be 16-byte aligned
+	// then set the RDBAL/RDBAH reg
+	e1000[E1000_RDBAL] = (uint32_t)PADDR(rx_desc_buffer);
+	e1000[E1000_RDBAH] = 0;
+	cprintf("rx_desc_buffer addr : 0x%08x\n", rx_desc_buffer);
+	// Step 5. set the RDLEN reg to the size of the descriptor ring
+	// must be 128-byte aligned in bytes
+	e1000[E1000_RDLEN] = rx_desc_len * sizeof(struct rx_desc);
+	// Step 6. initialize the RDH and RDT to 0b after power-on
+	e1000[E1000_RDH] = 0x1;
+	e1000[E1000_RDT] = 0x0;
+	// Step 7. Program the Receive Control reg (RTCL)
+	// long packet enable
+	e1000[E1000_RCTL] &= (~E1000_RCTL_LPE);
+	e1000[E1000_RCTL] |= E1000_RCTL_LBM_NO;
+	// minimum threshold value
+	e1000[E1000_RCTL] |= E1000_RCTL_RDMTS_HALF;
+	// MO
+	// BAM broadcast disable default value is 0b
+	// e1000[E1000_RCTL] |= E1000_RCTL_BAM;
+	// BSIZE receive buffer size
+	// 1024 bytes
+	e1000[E1000_RCTL] |= E1000_RCTL_SZ_1024;
+	// strip CRC
+	e1000[E1000_RCTL] |= E1000_RCTL_SECRC;
+	// Step 8. initialzie the rx_desc_buffer 
+	struct rx_desc rx;
+	int i = 0;
+	for(i = 0; i < rx_desc_len ; i++){
+		memset(&rx, 0, sizeof(struct rx_desc));
+		rx.buffer_addr = (uint32_t)PADDR(receive_buffer[i]);
+		//cprintf("tx.addr : 0x%08x\n", tx.addr);
+		rx_desc_buffer[i] = rx;
+	}
+	// receive enable
+	e1000[E1000_RCTL] |= E1000_RCTL_EN;
+
+}
+
+void hexdump(const char *prefix, const void *data, int len)
+{
+	int i;
+	char buf[80];
+	char *end = buf + sizeof(buf);
+	char *out = NULL;
+	for (i = 0; i < len; i++) {
+		if (i % 16 == 0)
+			out = buf + snprintf(buf, end - buf,
+					     "%s%04x   ", prefix, i);
+		out += snprintf(out, end - out, "%02x", ((uint8_t*)data)[i]);
+		if (i % 16 == 15 || i == len - 1)
+			cprintf("%.*s\n", out - buf, buf);
+		if (i % 2 == 1)
+			*(out++) = ' ';
+		if (i % 16 == 7)
+			*(out++) = ' ';
+	}
+}

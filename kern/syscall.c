@@ -510,6 +510,8 @@ sys_pack_send(const char *data, int len)
 		return -E_INVAL;
 
 	// Step 2. send packet through Ethercard
+	// for debug
+	//hexdump("ARP:  ", data, len);
 	r = transmit_pack(data, len);
 	if(r == -E_NO_MEM){
 
