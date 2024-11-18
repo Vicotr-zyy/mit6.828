@@ -77,6 +77,20 @@ static int
 send_data(struct http_request *req, int fd)
 {
 	// LAB 6: Your code here.
+	// Step 1. read file contents
+	char buf[1024];
+	int len = read(fd, buf, 1024);
+	if( len < 0){
+		die("fd can't open file to read");
+		return -1;
+	}
+	
+	if (write(req->sock, buf, len) != len) {
+		die("Failed to send bytes to client");
+	}
+
+	return 0;
+
 	panic("send_data not implemented");
 }
 
@@ -221,9 +235,22 @@ send_file(struct http_request *req)
 	// if the file does not exist, send a 404 error using send_error
 	// if the file is a directory, send a 404 error using send_error
 	// set file_size to the size of the file
-
+	// Step 1. open the file to send
+	struct Stat fsstat;
+	fd = stat(req->url, &fsstat);
+	// Step 2. file is a diretory or file is not exist
+	if(fd < 0){
+		send_error(req, 404);
+		goto end;
+	}
+	if(fsstat.st_isdir){
+		send_error(req, 404);
+		goto end;
+	}
+	// Step 3. file exits
+	file_size = fsstat.st_size;
 	// LAB 6: Your code here.
-	panic("send_file not implemented");
+	//panic("send_file not implemented");
 
 	if ((r = send_header(req, 200)) < 0)
 		goto end;

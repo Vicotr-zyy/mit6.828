@@ -423,6 +423,13 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			return -E_INVAL;
 
 		int r = page_insert(env->env_pgdir, pginfo, env->env_ipc_dstva, perm);
+#if 0
+		if(value == 10){
+			cprintf("physical page: 0x%08x src_va : 0x%08x dstva: 0x%08x\n", page2pa(pginfo), srcva, env->env_ipc_dstva);
+			hexdump("in kernel: ", KADDR(page2pa(pginfo)), 64);
+		}
+#endif 
+
 		if(r < 0)
 			return -E_NO_MEM;
 
@@ -522,6 +529,32 @@ sys_pack_send(const char *data, int len)
 
 	return r;
 }
+// transmit packet from user space
+static int
+sys_pack_recv(const char *data, int *len)
+{
+	int r;
+	// Step 1. do some necessary check
+	//user_mem_assert(curenv, (void *)data, PGSIZE, PTE_U);
+	// simple check it will be prone to damage
+	//if((uintptr_t)data >= UTOP || (uintptr_t)(data + PGSIZE) >= UTOP)	
+	if((uintptr_t)data >= UTOP)	
+		return -E_INVAL;
+
+	// Step 2. send packet through Ethercard
+	// for debug
+	//hexdump("ARP:  ", data, len);
+	r = receive_pack(data, len);
+	if(r == -E_NO_MEM){
+		//sched_yield();
+		return -E_WAIT;
+	}
+	if(r < 0){
+		panic("sys_pack_recv error : %e \n", r);
+	}
+
+	return r;
+}
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -549,6 +582,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_env_set_trapframe: ret = sys_env_set_trapframe((envid_t)a1, (struct Trapframe*)a2); break;
 	case SYS_time_msec: ret = sys_time_msec(); break;
 	case SYS_pack_send: ret = sys_pack_send((const char *)a1, (int)a2); break;
+	case SYS_pack_recv: ret = sys_pack_recv((const char *)a1, (int *)a2); break;
 
 	default:
 		return -E_INVAL;

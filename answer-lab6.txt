@@ -6,3 +6,13 @@ but when it's really full ,just return -E_NO_MEM to sys_pack_send
 then the syscall will do some ipc_message to tell the caller it's full and you
 need to resend or what.
 
+
+2. structure the receive implemention
+transmit_recv(*data, *len)
+but the head and tail must assign right value before receiver
+once the queue is empty it return a special value indicates retry
+the input env then recall the sys_pacK_recv.
+but i use a great large of rx_desc_desciptor
+
+After that, in input_env, we sys_yield and use another page in case of read reduncy
+

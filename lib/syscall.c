@@ -125,6 +125,11 @@ sys_time_msec(void)
 int
 sys_pack_send(const char *data, int len)
 {
-	//cprintf("lib/syscall: data : 0x%08x len : %d\n", data, len);
 	return (int)syscall(SYS_pack_send, 1, (uint32_t)data, (uint32_t)len, 0, 0, 0);
+}
+int
+sys_pack_recv(const char *data, int *len)
+{
+	//return (int)syscall(SYS_pack_recv, 0, (uint32_t)data, (uint32_t)len, 0, 0, 0);
+	return (int)syscall(SYS_pack_recv, 1, (uint32_t)data, (uint32_t)len, 0, 0, 0);
 }

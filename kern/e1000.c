@@ -165,8 +165,13 @@ receive_init()
 	// must be 128-byte aligned in bytes
 	e1000[E1000_RDLEN] = rx_desc_len * sizeof(struct rx_desc);
 	// Step 6. initialize the RDH and RDT to 0b after power-on
-	e1000[E1000_RDH] = 0x1;
-	e1000[E1000_RDT] = 0x0;
+	e1000[E1000_RDH] = 0x0;
+	e1000[E1000_RDT] = rx_desc_len - 1;
+	//Head should point to the first valid receive descriptor in the
+	//descriptor ring and tail should point to one descriptor 
+	//beyond the last valid descriptor in the
+	//descriptor ring.
+	//e1000[E1000_RDT] = 0x0;
 	// Step 7. Program the Receive Control reg (RTCL)
 	// long packet enable
 	e1000[E1000_RCTL] &= (~E1000_RCTL_LPE);
@@ -187,6 +192,7 @@ receive_init()
 	for(i = 0; i < rx_desc_len ; i++){
 		memset(&rx, 0, sizeof(struct rx_desc));
 		rx.buffer_addr = (uint32_t)PADDR(receive_buffer[i]);
+		//rx.status |= E1000_RXD_STAT_DD;
 		//cprintf("tx.addr : 0x%08x\n", tx.addr);
 		rx_desc_buffer[i] = rx;
 	}
@@ -195,6 +201,32 @@ receive_init()
 
 }
 
+// receive packet from ethernet card
+int receive_pack(const char *buf, int *len)
+{
+	// Step 1. read the transmit descriptor tail
+	int index = e1000[E1000_RDT];	
+	int flag = 0;
+	index = (index + 1) % rx_desc_len;
+	// Step 2. check the descriptor is ready to retrive
+	struct rx_desc rx = rx_desc_buffer[index];
+	if((rx.status & E1000_RXD_STAT_DD) == 0){
+		// not ready
+		// trying to handle empty buffer
+		return -E_NO_MEM;
+	}
+	// Step 3. copy data from card to caller
+	// assert(len > rx.length);
+	// cprintf("rx.addr : 0x%08x rx.length: 0x%08x\n", rx.buffer_addr, rx.length);
+	memmove((void *)buf, (void*)KADDR(rx.buffer_addr), rx.length);
+	// update the recv length
+	*len = rx.length;
+	// hexdump("recv:  ", buf, rx.length);
+	// Step 4. update the RDT	
+	e1000[E1000_RDT] = index;
+	
+	return 0;
+}
 void hexdump(const char *prefix, const void *data, int len)
 {
 	int i;

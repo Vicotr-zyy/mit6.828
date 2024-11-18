@@ -104,9 +104,11 @@ umain(int argc, char **argv)
 		if (req != NSREQ_INPUT)
 			panic("Unexpected IPC %d", req);
 
+		// cprintf("recv not response req : %d whom : %x NSREQ_INPUT : %d\n", req, whom, NSREQ_INPUT);
+		// cprintf("jp_data: 0x%08x jp_len: 0x%08x\n", pkt->jp_data, pkt->jp_len);
 		hexdump("input: ", pkt->jp_data, pkt->jp_len);
 		cprintf("\n");
-
+		
 		// Only indicate that we're waiting for packets once
 		// we've received the ARP reply
 		if (first)

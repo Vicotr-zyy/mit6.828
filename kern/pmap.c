@@ -583,6 +583,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	}
 	if(*p_pte){
 		//do some necessary check
+		//cprintf("va : 0x%08x\n", va);
 		if((*p_pte & (~0x3ff)) != page2pa(pp)){
 			page_remove(pgdir, va);
 			pp->pp_ref++;
