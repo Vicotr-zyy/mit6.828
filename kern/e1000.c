@@ -16,7 +16,7 @@ volatile uint32_t *e1000;
 // but everything after that is asynchronous.
 // Transmit Descriptor Array
 // len of descriptor is 16 bytes 128 = 8 * 16
-#define tx_desc_len 16
+#define tx_desc_len 32
 // Transmit Descriptor Queue
 __attribute__((__aligned__(16)))
 static struct tx_desc tx_desc_buffer[tx_desc_len];

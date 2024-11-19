@@ -237,7 +237,8 @@ send_file(struct http_request *req)
 	// set file_size to the size of the file
 	// Step 1. open the file to send
 	struct Stat fsstat;
-	fd = stat(req->url, &fsstat);
+	stat(req->url, &fsstat);
+	fd = open(req->url, O_RDONLY);
 	// Step 2. file is a diretory or file is not exist
 	if(fd < 0){
 		send_error(req, 404);
@@ -249,6 +250,8 @@ send_file(struct http_request *req)
 	}
 	// Step 3. file exits
 	file_size = fsstat.st_size;
+	//file_size = 1024;
+	cprintf("req->url : %s fd : %d size : %d\n", req->url, fd, file_size);
 	// LAB 6: Your code here.
 	//panic("send_file not implemented");
 
